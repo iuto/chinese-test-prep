@@ -1,32 +1,54 @@
-@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Universal Design Font (BIZ UDPGothic) as Primary Font */
 body {
-  font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'BIZ UDPGothic', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  image-rendering: pixelated;
 }
 
-/* Force Gothic / Modern Sans-Serif font on all text (No hard Serif) */
-.font-serif, h1, h2, h3, h4, button, span, div {
-  font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+h1, h2, h3, h4, button, span, p, div, input, textarea {
+  font-family: 'BIZ UDPGothic', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
-.perspective-1000 {
-  perspective: 1000px;
-}
-.transform-style-3d {
-  transform-style: preserve-3d;
-}
-.backface-hidden {
-  backface-visibility: hidden;
-}
-.rotate-y-180 {
-  transform: rotateY(180deg);
+/* 8-bit NES Classic Border Frame */
+.pixel-box {
+  background-color: #090D16;
+  border: 4px solid #FFFFFF;
+  box-shadow: inset 0 0 0 2px #090D16, 0 4px 0 0 #000000;
+  color: #FFFFFF;
 }
 
-/* RPG Damage Float Animation */
+.pixel-box-gold {
+  background-color: #090D16;
+  border: 4px solid #F59E0B;
+  box-shadow: inset 0 0 0 2px #090D16, 0 4px 0 0 #000000;
+  color: #FFFFFF;
+}
+
+.pixel-btn {
+  border: 3px solid #64748B;
+  background-color: #0F172A;
+  transition: all 0.1s ease;
+}
+
+.pixel-btn:hover:not(:disabled) {
+  border-color: #F59E0B;
+  background-color: #1E293B;
+  transform: translateY(-2px);
+}
+
+.pixel-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* NES Retro Font Class for Numbers & Special Badges */
+.font-nes {
+  font-family: 'Press Start 2P', monospace !important;
+}
+
+/* RPG Damage & Monster Hit Animations */
 @keyframes damage-pop {
   0% { opacity: 0; transform: translateY(0) scale(0.5); }
   30% { opacity: 1; transform: translateY(-20px) scale(1.3); }
@@ -48,7 +70,7 @@ body {
   animation: monster-shake 0.35s ease-in-out;
 }
 
-/* Hide scrollbars for clean UI */
+/* Hide scrollbars */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
