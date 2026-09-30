@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { VocabItem } from '../types';
 import { initialMonsters } from '../data/monsters';
-import { Volume2, CheckCircle, XCircle, RotateCcw, HelpCircle, Zap, ShieldAlert, Heart, Flame } from 'lucide-react';
+import { Volume2, CheckCircle, XCircle, RotateCcw, HelpCircle, Zap, Heart, Flame } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sounds } from '../utils/sound';
 import { PixelKnight, PixelDragon, PixelSkeleton, PixelSlime, PixelTorch } from './PixelSprites';
@@ -11,8 +11,6 @@ interface VocabStudyProps {
   onToggleMastered: (id: string) => void;
   onResetMastered: () => void;
 }
-
-const MONSTER_ATTACK_INTERVAL = 5.0; // 5 seconds timer per monster attack
 
 export const VocabStudy: React.FC<VocabStudyProps> = ({
   vocabList,
@@ -37,8 +35,6 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
   const [heroAttacking, setHeroAttacking] = useState<boolean>(false);
   const [isPlayerHit, setIsPlayerHit] = useState<boolean>(false);
 
-  // Active Battle Timer State (ATB)
-  const [timeLeft, setTimeLeft] = useState<number>(MONSTER_ATTACK_INTERVAL);
   const questionStartTimeRef = useRef<number>(Date.now());
 
   // Items State
@@ -74,37 +70,15 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
 
   const correctAnswerIndex = options.findIndex((opt) => opt.id === currentItem?.id);
 
-  // Reset state on new question & start active timer
+  // Reset state on new question
   useEffect(() => {
     setSelectedOption(null);
     setIsAnswered(false);
     setIsCorrect(false);
     setHiddenOptionIndices([]);
-    setTimeLeft(MONSTER_ATTACK_INTERVAL);
     questionStartTimeRef.current = Date.now();
     if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
   }, [currentIndex, shuffledList]);
-
-  // Real-Time Monster Counter Attack Loop (Active Battle Timer)
-  useEffect(() => {
-    if (isAnswered || playerHp <= 0 || shuffledList.length === 0) return;
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 0.1) {
-          // Monster counter-attacks player!
-          sounds.playPlayerHurt();
-          setIsPlayerHit(true);
-          setTimeout(() => setIsPlayerHit(false), 350);
-          setPlayerHp((hp) => Math.max(0, hp - 15));
-          return MONSTER_ATTACK_INTERVAL; // Reset timer loop
-        }
-        return prev - 0.1;
-      });
-    }, 100);
-
-    return () => clearInterval(timer);
-  }, [isAnswered, playerHp, shuffledList]);
 
   const speak = (text: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -137,7 +111,7 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
 
     if (correct) {
       const responseTimeSec = (Date.now() - questionStartTimeRef.current) / 1000;
-      const isSpeedAttack = responseTimeSec <= 2.0;
+      const isSpeedAttack = responseTimeSec <= 2.5;
 
       let baseDmg = isDoubleDamageActive ? 60 : 30;
       if (isSpeedAttack) baseDmg = Math.round(baseDmg * 1.5);
@@ -245,7 +219,6 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
 
   const handleContinueGame = () => {
     setPlayerHp(maxPlayerHp);
-    setTimeLeft(MONSTER_ATTACK_INTERVAL);
   };
 
   const handleRestart = () => {
@@ -341,7 +314,7 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
           </button>
         </div>
 
-        {/* Item Counter Bar & SPEED TIMER */}
+        {/* Item Counter Bar */}
         <div className="flex items-center justify-between text-xs pt-1">
           <div className="flex items-center gap-2">
             <button
@@ -373,12 +346,9 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
             </button>
           </div>
 
-          {/* ACTIVE BATTLE TIMER COUNTDOWN (ATB) */}
-          <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded border border-rose-500/50">
-            <ShieldAlert className="w-3.5 h-3.5 text-rose-400 animate-bounce" />
-            <span className="text-[10px] font-bold text-slate-300">敵の被弾まで:</span>
-            <span className="font-mono font-bold text-xs text-rose-400">{timeLeft.toFixed(1)}s</span>
-          </div>
+          <span className="text-[11px] text-slate-400 font-mono">
+            問 {currentIndex + 1} / {shuffledList.length}
+          </span>
         </div>
       </div>
 
@@ -393,8 +363,8 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
         <div className="absolute top-4 left-10 z-10"><PixelTorch /></div>
         <div className="absolute top-4 right-10 z-10"><PixelTorch /></div>
 
-        {/* Monster HP & ATB Timer Progress Gauge */}
-        <div className="absolute top-3 left-0 right-0 z-20 flex flex-col items-center gap-1">
+        {/* Monster HP Progress Gauge */}
+        <div className="absolute top-3 left-0 right-0 z-20 flex justify-center">
           <div className="bg-slate-900/90 border border-slate-600 px-4 py-1 rounded-full flex items-center gap-3">
             <span className="font-bold text-xs text-rose-400 flex items-center gap-1">
               👾 {currentMonster.name}
@@ -408,14 +378,6 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
                 {monsterHp}/{currentMonster.maxHp}
               </span>
             </div>
-          </div>
-
-          {/* Active Timer Countdown Bar */}
-          <div className="w-48 bg-slate-900 h-1.5 border border-rose-950 overflow-hidden rounded">
-            <div
-              className="bg-gradient-to-r from-rose-500 to-amber-400 h-full transition-all duration-100"
-              style={{ width: `${(timeLeft / MONSTER_ATTACK_INTERVAL) * 100}%` }}
-            />
           </div>
         </div>
 
@@ -455,8 +417,8 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
           <span className="bg-amber-500 text-slate-950 font-bold px-2.5 py-0.5 rounded">
             {currentItem.category}
           </span>
-          <span className="text-rose-400 font-bold flex items-center gap-1">
-            ⚡ 2秒以内に即答で「SPEED STRIKE!」発動
+          <span className="text-amber-300 font-bold flex items-center gap-1">
+            ⚡ 2.5秒以内に即答で「SPEED STRIKE!」発動
           </span>
         </div>
 

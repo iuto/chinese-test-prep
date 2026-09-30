@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { QuizItem } from '../types';
 import { initialMonsters } from '../data/monsters';
-import { CheckCircle, XCircle, RotateCcw, HelpCircle, Zap, Heart, ShieldAlert, Flame } from 'lucide-react';
+import { CheckCircle, XCircle, RotateCcw, HelpCircle, Zap, Heart, Flame } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sounds } from '../utils/sound';
 import { PixelKnight, PixelDragon, PixelSkeleton, PixelSlime, PixelTorch } from './PixelSprites';
@@ -10,8 +10,6 @@ interface GrammarQuizProps {
   quizList: QuizItem[];
   comboCount?: number;
 }
-
-const MONSTER_ATTACK_INTERVAL = 5.0;
 
 export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
   const [shuffledList, setShuffledList] = useState<QuizItem[]>([]);
@@ -33,8 +31,6 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
   const [heroAttacking, setHeroAttacking] = useState<boolean>(false);
   const [isPlayerHit, setIsPlayerHit] = useState<boolean>(false);
 
-  // ATB Timer State
-  const [timeLeft, setTimeLeft] = useState<number>(MONSTER_ATTACK_INTERVAL);
   const questionStartTimeRef = useRef<number>(Date.now());
 
   // Items State
@@ -63,30 +59,9 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
     setIsAnswered(false);
     setIsCorrect(false);
     setHiddenOptionIndices([]);
-    setTimeLeft(MONSTER_ATTACK_INTERVAL);
     questionStartTimeRef.current = Date.now();
     if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
   }, [currentIndex, shuffledList]);
-
-  // Real-Time Monster Counter Attack Loop
-  useEffect(() => {
-    if (isAnswered || playerHp <= 0 || shuffledList.length === 0) return;
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 0.1) {
-          sounds.playPlayerHurt();
-          setIsPlayerHit(true);
-          setTimeout(() => setIsPlayerHit(false), 350);
-          setPlayerHp((hp) => Math.max(0, hp - 15));
-          return MONSTER_ATTACK_INTERVAL;
-        }
-        return prev - 0.1;
-      });
-    }, 100);
-
-    return () => clearInterval(timer);
-  }, [isAnswered, playerHp, shuffledList]);
 
   const handleNext = () => {
     if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
@@ -226,7 +201,6 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
 
   const handleContinueGame = () => {
     setPlayerHp(maxPlayerHp);
-    setTimeLeft(MONSTER_ATTACK_INTERVAL);
   };
 
   const handleRestart = () => {
@@ -316,7 +290,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
           </button>
         </div>
 
-        {/* Items & Active Timer */}
+        {/* Items */}
         <div className="flex items-center justify-between text-xs pt-1">
           <div className="flex items-center gap-2">
             <button
@@ -348,11 +322,9 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded border border-rose-500/50">
-            <ShieldAlert className="w-3.5 h-3.5 text-rose-400 animate-bounce" />
-            <span className="text-[10px] font-bold text-slate-300">敵の被弾まで:</span>
-            <span className="font-mono font-bold text-xs text-rose-400">{timeLeft.toFixed(1)}s</span>
-          </div>
+          <span className="text-[11px] text-slate-400 font-mono">
+            問 {currentIndex + 1} / {shuffledList.length}
+          </span>
         </div>
       </div>
 
@@ -365,7 +337,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
         <div className="absolute top-4 left-10 z-10"><PixelTorch /></div>
         <div className="absolute top-4 right-10 z-10"><PixelTorch /></div>
 
-        <div className="absolute top-3 left-0 right-0 z-20 flex flex-col items-center gap-1">
+        <div className="absolute top-3 left-0 right-0 z-20 flex justify-center">
           <div className="bg-slate-900/90 border border-slate-600 px-4 py-1 rounded-full flex items-center gap-3">
             <span className="font-bold text-xs text-rose-400 flex items-center gap-1">
               👾 {currentMonster.name}
@@ -379,13 +351,6 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
                 {monsterHp}/{currentMonster.maxHp}
               </span>
             </div>
-          </div>
-
-          <div className="w-48 bg-slate-900 h-1.5 border border-rose-950 overflow-hidden rounded">
-            <div
-              className="bg-gradient-to-r from-rose-500 to-amber-400 h-full transition-all duration-100"
-              style={{ width: `${(timeLeft / MONSTER_ATTACK_INTERVAL) * 100}%` }}
-            />
           </div>
         </div>
 
