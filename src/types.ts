@@ -61,3 +61,32 @@ export interface GrammarRuleSummary {
   }[];
   tips?: string[];
 }
+
+// RPG Battle Game Types
+export interface Monster {
+  id: string;
+  name: string;
+  icon: string;
+  maxHp: number;
+  currentHp: number;
+  rewardXp: number;
+  rewardCoins: number;
+}
+
+export type ItemType = 'hint_5050' | 'double_damage' | 'shield';
+
+export interface InventoryItem {
+  type: ItemType;
+  name: string;
+  icon: string;
+  count: number;
+  description: string;
+}
+
+export interface PlayerState {
+  level: number;
+  xp: number;
+  maxXp: number;
+  coins: number;
+  items: Record<ItemType, number>;
+}

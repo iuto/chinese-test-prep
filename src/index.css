@@ -1,6 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Force Gothic / Modern Sans-Serif font on all text (No hard Serif) */
+.font-serif, h1, h2, h3, h4, button, span, div {
+  font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
 
 .perspective-1000 {
   perspective: 1000px;
@@ -15,69 +26,26 @@
   transform: rotateY(180deg);
 }
 
-/* Custom Dopa-Drill Cyber Animations */
-@keyframes shake {
+/* RPG Damage Float Animation */
+@keyframes damage-pop {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  30% { opacity: 1; transform: translateY(-20px) scale(1.3); }
+  70% { opacity: 1; transform: translateY(-35px) scale(1); }
+  100% { opacity: 0; transform: translateY(-50px) scale(0.8); }
+}
+
+@keyframes monster-shake {
   0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-6px) rotate(-2deg); }
-  40%, 80% { transform: translateX(6px) rotate(2deg); }
+  25% { transform: translateX(-12px) rotate(-6deg); }
+  75% { transform: translateX(12px) rotate(6deg); }
 }
 
-@keyframes pop-bounce {
-  0% { transform: scale(0.8); opacity: 0; }
-  50% { transform: scale(1.15); opacity: 1; }
-  75% { transform: scale(0.95); }
-  100% { transform: scale(1); }
+.animate-damage {
+  animation: damage-pop 0.8s ease-out forwards;
 }
 
-@keyframes rainbow-glow {
-  0% { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); }
-  33% { filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.9)); }
-  66% { filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.9)); }
-  100% { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); }
-}
-
-@keyframes pulse-fast {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-}
-
-.animate-shake {
-  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-.animate-pop {
-  animation: pop-bounce 0.35s ease-out forwards;
-}
-
-.animate-rainbow {
-  animation: rainbow-glow 2s infinite linear;
-}
-
-.animate-pulse-fast {
-  animation: pulse-fast 0.6s infinite ease-in-out;
-}
-
-/* Cyber Neon Background Gradients */
-.cyber-bg {
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
-}
-
-.cyber-card {
-  background: rgba(30, 41, 59, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.neon-text-pink {
-  text-shadow: 0 0 10px rgba(236, 72, 153, 0.8), 0 0 20px rgba(236, 72, 153, 0.5);
-}
-
-.neon-text-yellow {
-  text-shadow: 0 0 10px rgba(234, 179, 8, 0.8), 0 0 20px rgba(234, 179, 8, 0.5);
-}
-
-.neon-text-cyan {
-  text-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 0 20px rgba(6, 182, 212, 0.5);
+.animate-monster-hit {
+  animation: monster-shake 0.35s ease-in-out;
 }
 
 /* Hide scrollbars for clean UI */
