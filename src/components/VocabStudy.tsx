@@ -215,6 +215,15 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
     }
   };
 
+  // "わからない" (Don't Know / Skip) Handler
+  const handleDontKnow = () => {
+    if (isAnswered || playerHp <= 0) return;
+    setIsAnswered(true);
+    setIsCorrect(false);
+    setSelectedOption(null);
+    sounds.playPlayerHurt();
+  };
+
   const useHint5050 = () => {
     if (itemCounts.hint_5050 <= 0 || isAnswered || playerHp <= 0) return;
     sounds.playItemUse();
@@ -511,7 +520,19 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
           })}
         </div>
 
-        {/* ❌ 不正解の時のみ解説と次へボタン */}
+        {/* ❓ 「わからない」 SKIP / GIVE UP BUTTON */}
+        {!isAnswered && (
+          <button
+            disabled={playerHp <= 0}
+            onClick={handleDontKnow}
+            className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs rounded border border-slate-700 transition-all flex items-center justify-center gap-1.5"
+          >
+            <HelpCircle className="w-4 h-4 text-amber-400" />
+            ❓ わからない (正解と解説を表示)
+          </button>
+        )}
+
+        {/* ❌ 不正解 ＆ わからない の時に正解・解説と次へボタンを表示 */}
         {isAnswered && !isCorrect && (
           <div className="p-4 rounded bg-rose-950/80 border-2 border-rose-600 space-y-3 animate-pop">
             <div className="flex items-center justify-between">

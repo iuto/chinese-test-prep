@@ -178,6 +178,14 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
     }
   };
 
+  const handleDontKnow = () => {
+    if (isAnswered || playerHp <= 0) return;
+    setIsAnswered(true);
+    setIsCorrect(false);
+    setSelectedOption(null);
+    sounds.playPlayerHurt();
+  };
+
   const handleCheckReorder = (userAnswer: string[]) => {
     if (isAnswered || !currentQuiz || !currentQuiz.correctReorder || playerHp <= 0) return;
     setIsAnswered(true);
@@ -470,6 +478,18 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
             isAnswered={isAnswered}
             onCheck={handleCheckReorder}
           />
+        )}
+
+        {/* ❓ 「わからない」 SKIP / GIVE UP BUTTON */}
+        {!isAnswered && (
+          <button
+            disabled={playerHp <= 0}
+            onClick={handleDontKnow}
+            className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs rounded border border-slate-700 transition-all flex items-center justify-center gap-1.5"
+          >
+            <HelpCircle className="w-4 h-4 text-amber-400" />
+            ❓ わからない (正解と解説を表示)
+          </button>
         )}
 
         {/* 不正解時のみ解説表示 */}
