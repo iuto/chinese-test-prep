@@ -9,13 +9,13 @@ import { GrammarCheatSheet } from './components/GrammarCheatSheet';
 import { DataEditor } from './components/DataEditor';
 
 export const App: React.FC = () => {
-  // Current Selected Lesson ID (null means on LessonSelect screen)
-  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  // Selected Lesson IDs array (empty means on LessonSelect screen)
+  const [selectedLessonIds, setSelectedLessonIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'vocab' | 'quiz' | 'cheat_sheet' | 'editor'>('vocab');
 
   // Load state from localStorage or initialData
   const [vocabList, setVocabList] = useState<VocabItem[]>(() => {
-    const saved = localStorage.getItem('chinese_vocab_list_v2');
+    const saved = localStorage.getItem('chinese_vocab_list_v3');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -23,7 +23,7 @@ export const App: React.FC = () => {
   });
 
   const [quizList, setQuizList] = useState<QuizItem[]>(() => {
-    const saved = localStorage.getItem('chinese_quiz_list_v2');
+    const saved = localStorage.getItem('chinese_quiz_list_v3');
     if (saved) {
       try { return JSON.parse(saved); } catch (e) {}
     }
@@ -32,15 +32,15 @@ export const App: React.FC = () => {
 
   // Save LocalStorage
   useEffect(() => {
-    localStorage.setItem('chinese_vocab_list_v2', JSON.stringify(vocabList));
+    localStorage.setItem('chinese_vocab_list_v3', JSON.stringify(vocabList));
   }, [vocabList]);
 
   useEffect(() => {
-    localStorage.setItem('chinese_quiz_list_v2', JSON.stringify(quizList));
+    localStorage.setItem('chinese_quiz_list_v3', JSON.stringify(quizList));
   }, [quizList]);
 
-  const handleSelectLesson = (lessonId: string, mode: 'vocab' | 'quiz' | 'cheat_sheet') => {
-    setSelectedLessonId(lessonId);
+  const handleStartGame = (ids: string[], mode: 'vocab' | 'quiz' | 'cheat_sheet') => {
+    setSelectedLessonIds(ids);
     setActiveTab(mode);
   };
 
@@ -57,25 +57,37 @@ export const App: React.FC = () => {
   };
 
   const handleResetAllData = () => {
-    localStorage.removeItem('chinese_vocab_list_v2');
-    localStorage.removeItem('chinese_quiz_list_v2');
+    localStorage.removeItem('chinese_vocab_list_v3');
+    localStorage.removeItem('chinese_quiz_list_v3');
     setVocabList(initialVocabList);
     setQuizList(initialQuizList);
   };
 
-  const currentLesson = lessonList.find((l) => l.id === selectedLessonId);
-  const currentVocabList = vocabList.filter((v) => !selectedLessonId || v.lessonId === selectedLessonId);
-  const currentQuizList = quizList.filter((q) => !selectedLessonId || q.lessonId === selectedLessonId);
+  // Filtered Vocab and Quiz for selected lessons
+  const currentVocabList = vocabList.filter(
+    (v) => selectedLessonIds.length === 0 || selectedLessonIds.includes(v.lessonId)
+  );
+
+  const currentQuizList = quizList.filter(
+    (q) => selectedLessonIds.length === 0 || selectedLessonIds.includes(q.lessonId)
+  );
+
   const masteredCount = currentVocabList.filter((v) => v.isMastered).length;
+
+  // Selected Lesson Display Text (e.g., "第7課, 第8課")
+  const selectedLessonNumbers = lessonList
+    .filter((l) => selectedLessonIds.includes(l.id))
+    .map((l) => l.number)
+    .join(', ');
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
-      {/* If No Lesson Selected -> Show Lesson Select Screen */}
-      {!selectedLessonId ? (
+      {/* If No Lessons Selected -> Show Home Selection Screen */}
+      {selectedLessonIds.length === 0 ? (
         <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
           <LessonSelect
             lessons={lessonList}
-            onSelectLesson={handleSelectLesson}
+            onStartGame={handleStartGame}
           />
         </main>
       ) : (
@@ -83,8 +95,8 @@ export const App: React.FC = () => {
           <Navbar
             activeTab={activeTab}
             setActiveTab={setActiveTab}
-            onBackToLessonSelect={() => setSelectedLessonId(null)}
-            currentLessonNumber={currentLesson?.number || 7}
+            onBackToLessonSelect={() => setSelectedLessonIds([])}
+            currentLessonNumber={selectedLessonNumbers ? parseInt(selectedLessonNumbers, 10) : 7}
             masteredCount={masteredCount}
             totalVocab={currentVocabList.length}
           />
