@@ -1,54 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { QuizItem } from '../types';
-import { HelpCircle, CheckCircle, XCircle, ArrowRight, RotateCcw, Award, Sparkles, Flame, Zap, Trophy, Smile } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, RotateCcw, Trophy, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sounds } from '../utils/sound';
 
 interface GrammarQuizProps {
   quizList: QuizItem[];
-  onCorrectAnswer?: () => void;
-  comboCount: number;
+  comboCount?: number;
 }
 
-export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ 
-  quizList, 
-  onCorrectAnswer,
-  comboCount 
-}) => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState<boolean>(false);
   const [isCorrect, setIsCorrect] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
-  const [quizFinished, setQuizFinished] = useState<boolean>(false);
-  const [shakeScreen, setShakeScreen] = useState<boolean>(false);
-  const [dopaText, setDopaText] = useState<string | null>(null);
+  const [isFinished, setIsFinished] = useState<boolean>(false);
 
-  // Filtered Quiz List
-  const filteredQuizList = quizList.filter(
-    (q) => selectedCategory === 'ALL' || q.category === selectedCategory
-  );
-
-  const currentQuiz = filteredQuizList[currentIndex];
-
-  // Hyper Dopamine Phrases
-  const dopaPhrases = [
-    '【神】脳汁ドバドバきたあああ！🧠💥',
-    '天才かよww 単位回収確定！🎉',
-    '語順パーフェクト！神回答乙！⚡️',
-    '圧倒的成長ww 脳破壊レベル！🔥',
-    '草ww 強すぎて単位が逃げていく！👑',
-  ];
+  const currentQuiz = quizList[currentIndex];
 
   useEffect(() => {
     setSelectedOption(null);
     setIsAnswered(false);
     setIsCorrect(false);
-    setDopaText(null);
-  }, [currentIndex, selectedCategory, quizList]);
+  }, [currentIndex, quizList]);
 
-  // Handle Option Select
   const handleSelectOption = (index: number) => {
     if (isAnswered || !currentQuiz) return;
     setSelectedOption(index);
@@ -59,26 +35,13 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({
 
     if (correct) {
       setScore((prev) => prev + 1);
-      if (onCorrectAnswer) onCorrectAnswer();
-
-      // Sound & Dopamine FX
-      if (comboCount >= 2) {
-        sounds.playCombo();
-      } else {
-        sounds.playCorrect();
-      }
-      triggerConfettiBurst();
-
-      const randomPhrase = dopaPhrases[Math.floor(Math.random() * dopaPhrases.length)];
-      setDopaText(randomPhrase);
+      sounds.playCorrect();
+      triggerConfetti();
     } else {
       sounds.playWrong();
-      setShakeScreen(true);
-      setTimeout(() => setShakeScreen(false), 500);
     }
   };
 
-  // Reorder Check
   const handleCheckReorder = (userAnswer: string[]) => {
     if (isAnswered || !currentQuiz || !currentQuiz.correctReorder) return;
     setIsAnswered(true);
@@ -90,254 +53,202 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({
     setIsCorrect(correct);
     if (correct) {
       setScore((prev) => prev + 1);
-      if (onCorrectAnswer) onCorrectAnswer();
-      
-      if (comboCount >= 2) {
-        sounds.playCombo();
-      } else {
-        sounds.playCorrect();
-      }
-      triggerConfettiBurst();
-
-      const randomPhrase = dopaPhrases[Math.floor(Math.random() * dopaPhrases.length)];
-      setDopaText(randomPhrase);
+      sounds.playCorrect();
+      triggerConfetti();
     } else {
       sounds.playWrong();
-      setShakeScreen(true);
-      setTimeout(() => setShakeScreen(false), 500);
     }
   };
 
-  const triggerConfettiBurst = () => {
+  const triggerConfetti = () => {
     try {
       confetti({
-        particleCount: 80,
-        spread: 100,
+        particleCount: 50,
+        spread: 70,
         origin: { y: 0.6 },
-        colors: ['#ec4899', '#8b5cf6', '#eab308', '#10b981', '#3b82f6'],
       });
     } catch (e) {}
   };
 
-  const handleNextQuiz = () => {
-    if (currentIndex < filteredQuizList.length - 1) {
+  const handleNext = () => {
+    if (currentIndex < quizList.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
       sounds.playLevelUp();
-      setQuizFinished(true);
+      setIsFinished(true);
     }
   };
 
   const handleRestart = () => {
     setCurrentIndex(0);
     setScore(0);
-    setQuizFinished(false);
+    setIsFinished(false);
     setIsAnswered(false);
     setSelectedOption(null);
   };
 
-  const categories = ['ALL', '時点vs時量', '从・到・离', '結果補語', '二vs两'];
-
-  if (filteredQuizList.length === 0) {
+  if (quizList.length === 0) {
     return (
-      <div className="text-center py-16 bg-slate-900 border-2 border-slate-800 rounded-3xl p-8">
-        <HelpCircle className="w-12 h-12 text-pink-400 mx-auto mb-2 animate-bounce" />
-        <p className="text-white font-black text-lg">該当する問題が見つからん！</p>
-        <button
-          onClick={() => setSelectedCategory('ALL')}
-          className="mt-4 px-6 py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-black rounded-2xl text-xs shadow-lg"
-        >
-          全問題解放
-        </button>
+      <div className="text-center py-16 bg-white rounded-3xl border border-slate-200">
+        <p className="font-bold text-slate-600">問題データがありません。</p>
       </div>
     );
   }
 
   return (
-    <div className={`max-w-2xl mx-auto space-y-6 ${shakeScreen ? 'animate-shake' : ''}`}>
-      {/* Category Pills */}
-      <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar bg-slate-900/90 p-2 rounded-2xl border border-pink-500/30">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => {
-              setSelectedCategory(cat);
-              handleRestart();
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap ${
-              selectedCategory === cat
-                ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-400 text-white shadow-lg border border-pink-300 scale-105'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-            }`}
-          >
-            {cat === 'ALL' ? '🔥 全バトル' : cat}
-          </button>
-        ))}
+    <div className="max-w-xl mx-auto space-y-6">
+      {/* Game Progress Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-extrabold text-red-700 bg-red-50 px-3 py-1 rounded-full border border-red-200">
+            文法1問1答ゲーム
+          </span>
+          <span className="text-xs font-bold text-slate-500">
+            第 {currentIndex + 1} / {quizList.length} 問
+          </span>
+        </div>
+
+        <div className="text-xs font-bold text-slate-700">
+          スコア: <span className="text-red-700 font-extrabold text-sm">{score}</span>
+        </div>
+      </div>
+
+      <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+        <div
+          className="bg-gradient-to-r from-red-600 to-rose-500 h-full transition-all duration-300 rounded-full"
+          style={{ width: `${((currentIndex + 1) / quizList.length) * 100}%` }}
+        />
       </div>
 
       {/* Quiz Finished Screen */}
-      {quizFinished ? (
-        <div className="bg-slate-900 border-4 border-yellow-400 rounded-3xl p-8 text-center shadow-2xl space-y-6 animate-pop">
-          <div className="inline-flex p-5 rounded-full bg-yellow-400/20 border-4 border-yellow-400 text-yellow-300 animate-bounce">
-            <Trophy className="w-20 h-20" />
+      {isFinished ? (
+        <div className="bg-white rounded-3xl p-8 text-center border-2 border-slate-200 shadow-xl space-y-6">
+          <div className="inline-flex p-4 rounded-full bg-amber-50 text-amber-500 border-2 border-amber-200">
+            <Trophy className="w-16 h-16 animate-bounce" />
           </div>
           <div>
-            <h2 className="text-3xl font-black text-yellow-300 neon-text-yellow">
-              🎉 全問無事死亡！！単位確定！！ 🎉
-            </h2>
-            <p className="text-slate-300 text-base font-extrabold mt-2">
-              {filteredQuizList.length}問中 <span className="text-pink-400 font-black text-2xl">{score}</span> 問正解！
+            <h2 className="text-2xl font-extrabold text-slate-800">全問ゲームクリア！🎉</h2>
+            <p className="text-sm font-bold text-slate-600 mt-2">
+              {quizList.length}問中 <span className="text-red-700 font-extrabold text-xl">{score}</span> 問正解しました！
             </p>
           </div>
 
-          <div className="bg-slate-950 p-4 rounded-2xl text-sm font-black text-cyan-300 border border-cyan-500/40">
-            脳汁達成率: {Math.round((score / filteredQuizList.length) * 100)}% 🔥 【神ランク認定】
+          <div className="bg-slate-50 p-4 rounded-2xl text-xs font-bold text-slate-600 border border-slate-200">
+            正解率: {Math.round((score / quizList.length) * 100)}%
           </div>
 
           <button
             onClick={handleRestart}
-            className="w-full py-4 bg-gradient-to-r from-pink-500 via-purple-600 to-cyan-400 hover:scale-105 text-white rounded-2xl font-black text-base shadow-xl flex items-center justify-center gap-2 transition-all"
+            className="w-full py-4 bg-red-700 hover:bg-red-800 text-white rounded-2xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
           >
-            <RotateCcw className="w-5 h-5" /> もう一度脳汁を出す！
+            <RotateCcw className="w-4 h-4" /> もう一度挑戦する
           </button>
         </div>
       ) : (
-        /* Active Quiz Card */
-        <div className="bg-slate-900/95 border-2 border-pink-500/40 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-md">
-          {/* Header */}
-          <div className="bg-slate-950 px-6 py-4 border-b border-pink-500/30 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="bg-pink-500/20 text-pink-300 font-black text-xs px-3 py-1 rounded-full border border-pink-500/50">
-                {currentQuiz.category}
-              </span>
-              <span className="text-xs text-slate-400 font-black">
-                第 {currentIndex + 1} / {filteredQuizList.length} 問
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {comboCount > 0 && (
-                <span className="flex items-center gap-1 font-black text-yellow-300 text-xs bg-yellow-400/20 px-2.5 py-1 rounded-full border border-yellow-400/40 animate-pulse-fast">
-                  <Flame className="w-3.5 h-3.5" /> {comboCount} COMBO
-                </span>
-              )}
-              <span className="text-xs font-black text-slate-300">
-                SCORE: <strong className="text-yellow-400 text-base">{score}</strong>
-              </span>
-            </div>
+        /* Single Question Game Card */
+        <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-lg p-6 sm:p-8 space-y-6">
+          <div>
+            <span className="text-xs font-bold text-red-700 bg-red-50 px-3 py-1 rounded-full border border-red-200">
+              {currentQuiz.category}
+            </span>
+            <h3 className="text-xl font-extrabold text-slate-800 mt-3 leading-snug">
+              {currentQuiz.question}
+            </h3>
+            {currentQuiz.promptJp && (
+              <p className="text-xs text-slate-500 mt-2 bg-amber-50 p-3 rounded-xl border border-amber-200/60 font-medium">
+                💡 {currentQuiz.promptJp}
+              </p>
+            )}
           </div>
 
-          {/* Body */}
-          <div className="p-6 space-y-6">
-            <div>
-              <h3 className="text-2xl font-black text-white leading-snug tracking-wide">
-                {currentQuiz.question}
-              </h3>
-              {currentQuiz.promptJp && (
-                <p className="text-xs text-amber-300 mt-2 bg-amber-950/60 p-3 rounded-xl border border-amber-500/40 font-bold">
-                  💡 {currentQuiz.promptJp}
-                </p>
-              )}
-            </div>
+          {/* Multiple Choice Options */}
+          {currentQuiz.type === 'multiple_choice' && currentQuiz.options && (
+            <div className="space-y-3">
+              {currentQuiz.options.map((opt, idx) => {
+                let btnStyle = 'border-slate-200 hover:border-red-400 bg-white text-slate-800';
 
-            {/* Multiple Choice Options */}
-            {currentQuiz.type === 'multiple_choice' && currentQuiz.options && (
-              <div className="space-y-3">
-                {currentQuiz.options.map((opt, idx) => {
-                  let btnStyle = 'border-slate-700 bg-slate-800/80 hover:border-pink-500 text-white hover:bg-slate-800';
-
-                  if (isAnswered) {
-                    if (idx === currentQuiz.correctAnswerIndex) {
-                      btnStyle = 'border-emerald-400 bg-emerald-950 text-emerald-200 font-black ring-4 ring-emerald-500/50 scale-102';
-                    } else if (idx === selectedOption) {
-                      btnStyle = 'border-pink-500 bg-pink-950 text-pink-200 font-black';
-                    } else {
-                      btnStyle = 'border-slate-800 bg-slate-900 opacity-40';
-                    }
+                if (isAnswered) {
+                  if (idx === currentQuiz.correctAnswerIndex) {
+                    btnStyle = 'border-emerald-500 bg-emerald-50 text-emerald-900 font-bold ring-2 ring-emerald-400/50';
+                  } else if (idx === selectedOption) {
+                    btnStyle = 'border-red-400 bg-red-50 text-red-900 font-bold';
+                  } else {
+                    btnStyle = 'border-slate-200 bg-slate-50 opacity-40';
                   }
+                }
 
-                  return (
-                    <button
-                      key={idx}
-                      disabled={isAnswered}
-                      onClick={() => handleSelectOption(idx)}
-                      className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between font-bold text-base ${btnStyle}`}
-                    >
-                      <span className="flex items-center gap-3">
-                        <span className="w-7 h-7 rounded-xl bg-slate-700 flex items-center justify-center text-xs font-black text-pink-300 border border-pink-500/30">
-                          {['A', 'B', 'C', 'D'][idx]}
-                        </span>
-                        {opt}
+                return (
+                  <button
+                    key={idx}
+                    disabled={isAnswered}
+                    onClick={() => handleSelectOption(idx)}
+                    className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between font-bold text-sm sm:text-base ${btnStyle}`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 border">
+                        {['A', 'B', 'C', 'D'][idx]}
                       </span>
+                      {opt}
+                    </span>
 
-                      {isAnswered && idx === currentQuiz.correctAnswerIndex && (
-                        <CheckCircle className="w-6 h-6 text-emerald-400 animate-bounce" />
-                      )}
-                      {isAnswered && idx === selectedOption && idx !== currentQuiz.correctAnswerIndex && (
-                        <XCircle className="w-6 h-6 text-pink-500" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+                    {isAnswered && idx === currentQuiz.correctAnswerIndex && (
+                      <CheckCircle className="w-5 h-5 text-emerald-600" />
+                    )}
+                    {isAnswered && idx === selectedOption && idx !== currentQuiz.correctAnswerIndex && (
+                      <XCircle className="w-5 h-5 text-red-500" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-            {/* Reorder Interactive Option */}
-            {currentQuiz.type === 'reorder' && currentQuiz.tokens && (
-              <ReorderComponent
-                quiz={currentQuiz}
-                isAnswered={isAnswered}
-                onCheck={handleCheckReorder}
-              />
-            )}
+          {/* Reorder Interactive Option */}
+          {currentQuiz.type === 'reorder' && currentQuiz.tokens && (
+            <ReorderComponent
+              quiz={currentQuiz}
+              isAnswered={isAnswered}
+              onCheck={handleCheckReorder}
+            />
+          )}
 
-            {/* Dopa Phrase Pop-up Banner */}
-            {dopaText && (
-              <div className="bg-gradient-to-r from-pink-500 via-purple-600 to-yellow-400 text-white p-3.5 rounded-2xl font-black text-center text-sm shadow-xl animate-pop border-2 border-yellow-300 tracking-wider">
-                {dopaText}
-              </div>
-            )}
-
-            {/* Answer Result & Explanation Banner */}
-            {isAnswered && (
-              <div className={`p-5 rounded-2xl space-y-3 transition-all ${
-                isCorrect 
-                  ? 'bg-emerald-950/80 border-2 border-emerald-400 text-emerald-100' 
-                  : 'bg-pink-950/80 border-2 border-pink-500 text-pink-100'
-              }`}>
-                <div className="flex items-center gap-2">
-                  {isCorrect ? (
-                    <>
-                      <Zap className="w-6 h-6 text-yellow-300 animate-bounce" />
-                      <span className="font-black text-emerald-300 text-lg">正解！脳汁MAX！</span>
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-6 h-6 text-pink-400" />
-                      <span className="font-black text-pink-300 text-lg">ミス！次で取り返せ！</span>
-                    </>
-                  )}
-                </div>
-
-                {currentQuiz.grammarNote && (
-                  <div className="text-xs font-black bg-slate-900/90 p-2.5 rounded-xl text-yellow-300 border border-yellow-400/40">
-                    📐 脳死公式: {currentQuiz.grammarNote}
-                  </div>
+          {/* Result & Explanation */}
+          {isAnswered && (
+            <div className={`p-4 sm:p-5 rounded-2xl space-y-3 transition-all ${
+              isCorrect ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'
+            }`}>
+              <div className="flex items-center gap-2 font-extrabold text-base">
+                {isCorrect ? (
+                  <>
+                    <CheckCircle className="w-5 h-5 text-emerald-600" />
+                    <span className="text-emerald-800">正解です！</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-5 h-5 text-red-600" />
+                    <span className="text-red-800">不正解です</span>
+                  </>
                 )}
-
-                <p className="text-xs text-slate-200 leading-relaxed font-bold">
-                  {currentQuiz.explanation}
-                </p>
-
-                <button
-                  onClick={handleNextQuiz}
-                  className="w-full py-3.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white rounded-xl font-black text-sm shadow-lg flex items-center justify-center gap-2 mt-2 transition-all"
-                >
-                  {currentIndex === filteredQuizList.length - 1 ? '最終判定へ！' : '次のバトルへ →'} <ArrowRight className="w-4 h-4" />
-                </button>
               </div>
-            )}
-          </div>
+
+              {currentQuiz.grammarNote && (
+                <div className="text-xs font-bold bg-white/90 p-2.5 rounded-xl text-slate-700 border border-slate-200">
+                  📐 基本公式: {currentQuiz.grammarNote}
+                </div>
+              )}
+
+              <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                {currentQuiz.explanation}
+              </p>
+
+              <button
+                onClick={handleNext}
+                className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-sm shadow-md flex items-center justify-center gap-2 mt-2 transition-all"
+              >
+                {currentIndex === quizList.length - 1 ? '結果を見る' : '次の問題へ進む →'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -373,10 +284,10 @@ const ReorderComponent: React.FC<{
   return (
     <div className="space-y-4">
       {/* Target User Sentence Drop Zone */}
-      <div className="min-h-[70px] p-4 bg-slate-950 border-2 border-dashed border-pink-500/40 rounded-2xl flex flex-wrap gap-2.5 items-center">
+      <div className="min-h-[60px] p-3 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex flex-wrap gap-2 items-center">
         {userTokens.length === 0 && (
-          <span className="text-xs text-slate-500 font-bold italic">
-            下のカードをタップして神語順を作れ！
+          <span className="text-xs text-slate-400 font-medium italic">
+            下の単語カードを順にタップして文章を作ってください
           </span>
         )}
         {userTokens.map((t, idx) => (
@@ -384,7 +295,7 @@ const ReorderComponent: React.FC<{
             key={idx}
             disabled={isAnswered}
             onClick={() => removeToken(t, idx)}
-            className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm font-black rounded-xl shadow-md hover:scale-105 transition-all"
+            className="px-3.5 py-1.5 bg-red-700 text-white text-sm font-bold rounded-xl shadow-sm hover:bg-red-800 transition-all"
           >
             {t}
           </button>
@@ -392,13 +303,13 @@ const ReorderComponent: React.FC<{
       </div>
 
       {/* Available Token Pool */}
-      <div className="flex flex-wrap gap-2.5">
+      <div className="flex flex-wrap gap-2">
         {availableTokens.map((t, idx) => (
           <button
             key={idx}
             disabled={isAnswered}
             onClick={() => addToken(t, idx)}
-            className="px-4 py-2.5 bg-slate-800 border-2 border-pink-500/30 text-white text-sm font-black rounded-xl shadow-md hover:border-pink-500 hover:bg-slate-700 hover:scale-105 transition-all"
+            className="px-3.5 py-2 bg-white border-2 border-slate-300 text-slate-800 text-sm font-bold rounded-xl shadow-sm hover:border-red-500 hover:bg-red-50 transition-all"
           >
             {t}
           </button>
@@ -409,13 +320,13 @@ const ReorderComponent: React.FC<{
         <button
           disabled={userTokens.length === 0}
           onClick={() => onCheck(userTokens)}
-          className={`w-full py-3.5 rounded-2xl font-black text-sm shadow-xl transition-all ${
+          className={`w-full py-3.5 rounded-2xl font-bold text-sm shadow-md transition-all ${
             userTokens.length > 0
-              ? 'bg-gradient-to-r from-pink-500 via-purple-600 to-cyan-400 hover:scale-102 text-white'
-              : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+              ? 'bg-red-700 hover:bg-red-800 text-white'
+              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
         >
-          解答を叩き込む！⚡️
+          解答を送信する
         </button>
       )}
     </div>
