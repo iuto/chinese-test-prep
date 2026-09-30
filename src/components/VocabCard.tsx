@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { VocabItem } from '../types';
-import { Volume2, CheckCircle2, RotateCcw, Info, Sparkles } from 'lucide-react';
+import { Volume2, CheckCircle2, RotateCcw, Info, Sparkles, Zap, Flame } from 'lucide-react';
+import { sounds } from '../utils/sound';
 
 interface VocabCardProps {
   item: VocabItem;
@@ -11,6 +12,11 @@ export const VocabCard: React.FC<VocabCardProps> = ({ item, onToggleMastered }) 
   const [isFlipped, setIsFlipped] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
+  const handleCardClick = () => {
+    sounds.playFlip();
+    setIsFlipped(!isFlipped);
+  };
+
   const speak = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!('speechSynthesis' in window)) {
@@ -18,12 +24,10 @@ export const VocabCard: React.FC<VocabCardProps> = ({ item, onToggleMastered }) 
       return;
     }
     
-    // Stop any existing speech
     window.speechSynthesis.cancel();
-
     const utterance = new SpeechSynthesisUtterance(item.hanzi);
     utterance.lang = 'zh-CN';
-    utterance.rate = 0.85; // slightly slower for language learners
+    utterance.rate = 0.85;
 
     utterance.onstart = () => setIsPlayingAudio(true);
     utterance.onend = () => setIsPlayingAudio(false);
@@ -34,18 +38,18 @@ export const VocabCard: React.FC<VocabCardProps> = ({ item, onToggleMastered }) 
 
   const getCategoryBadgeColor = (cat: string) => {
     switch (cat) {
-      case '時間': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case '動詞': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case '名詞': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case '前置詞': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case '手書き・補足': return 'bg-pink-100 text-pink-800 border-pink-200';
-      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+      case '時間': return 'bg-amber-500/20 text-amber-300 border-amber-400/50';
+      case '動詞': return 'bg-cyan-500/20 text-cyan-300 border-cyan-400/50';
+      case '名詞': return 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50';
+      case '前置詞': return 'bg-purple-500/20 text-purple-300 border-purple-400/50';
+      case '手書き・補足': return 'bg-pink-500/20 text-pink-300 border-pink-400/50';
+      default: return 'bg-slate-700 text-slate-300 border-slate-600';
     }
   };
 
   return (
     <div
-      onClick={() => setIsFlipped(!isFlipped)}
+      onClick={handleCardClick}
       className="group relative w-full h-80 cursor-pointer perspective-1000 select-none"
     >
       <div
@@ -54,21 +58,21 @@ export const VocabCard: React.FC<VocabCardProps> = ({ item, onToggleMastered }) 
         }`}
       >
         {/* FRONT SIDE */}
-        <div className={`absolute inset-0 w-full h-full rounded-2xl p-6 flex flex-col justify-between backface-hidden shadow-md hover:shadow-xl border-2 transition-all ${
+        <div className={`absolute inset-0 w-full h-full rounded-3xl p-6 flex flex-col justify-between backface-hidden shadow-2xl border-2 transition-all ${
           item.isMastered 
-            ? 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-300' 
-            : 'bg-white border-slate-200 hover:border-red-300'
+            ? 'bg-slate-900 border-emerald-400/80 shadow-emerald-500/10' 
+            : 'bg-slate-900/95 border-pink-500/40 hover:border-pink-400 hover:shadow-pink-500/20'
         }`}>
           {/* Top Bar */}
           <div className="flex items-center justify-between">
-            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${getCategoryBadgeColor(item.category)}`}>
+            <span className={`text-xs px-3 py-1 rounded-full font-black border ${getCategoryBadgeColor(item.category)}`}>
               {item.category}
             </span>
 
             <div className="flex items-center gap-2">
               {item.isMastered && (
-                <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> 習得済み
+                <span className="flex items-center gap-1 text-[11px] font-black text-emerald-400 bg-emerald-950 px-2.5 py-1 rounded-full border border-emerald-400/50">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> 暗記完了！
                 </span>
               )}
               <button
@@ -76,8 +80,8 @@ export const VocabCard: React.FC<VocabCardProps> = ({ item, onToggleMastered }) 
                 title="中国語で発音を聞く"
                 className={`p-2.5 rounded-full transition-all ${
                   isPlayingAudio
-                    ? 'bg-red-500 text-white animate-bounce'
-                    : 'bg-red-50 hover:bg-red-100 text-red-600'
+                    ? 'bg-pink-500 text-white animate-bounce'
+                    : 'bg-slate-800 hover:bg-pink-500/20 text-pink-400 border border-pink-500/40'
                 }`}
               >
                 <Volume2 className="w-5 h-5" />
@@ -87,41 +91,41 @@ export const VocabCard: React.FC<VocabCardProps> = ({ item, onToggleMastered }) 
 
           {/* Main Hanzi */}
           <div className="text-center my-auto">
-            <h2 className="text-5xl font-extrabold text-slate-800 tracking-wider mb-3 drop-shadow-sm font-serif">
+            <h2 className="text-5xl font-black text-white tracking-widest mb-3 font-serif drop-shadow-lg neon-text-pink">
               {item.hanzi}
             </h2>
-            <p className="text-xs text-slate-400 font-medium tracking-widest uppercase">
-              タップして裏面を表示
+            <p className="text-[11px] text-pink-300 font-extrabold tracking-widest uppercase animate-pulse">
+              タップして裏面を表示 ⚡️
             </p>
           </div>
 
           {/* Bottom hint */}
-          <div className="flex items-center justify-between text-xs text-slate-400 border-t pt-3">
-            <span className="flex items-center gap-1">
-              <RotateCcw className="w-3.5 h-3.5" /> めくる
+          <div className="flex items-center justify-between text-xs text-slate-400 border-t border-slate-800 pt-3">
+            <span className="flex items-center gap-1 font-bold text-slate-400">
+              <RotateCcw className="w-3.5 h-3.5" /> カードを裏返す
             </span>
             {item.notes && (
-              <span className="flex items-center gap-1 text-amber-600 font-medium">
-                <Info className="w-3.5 h-3.5" /> メモあり
+              <span className="flex items-center gap-1 text-yellow-400 font-black">
+                <Sparkles className="w-3.5 h-3.5" /> メモあり
               </span>
             )}
           </div>
         </div>
 
         {/* BACK SIDE */}
-        <div className={`absolute inset-0 w-full h-full rounded-2xl p-6 flex flex-col justify-between backface-hidden rotate-y-180 shadow-md border-2 ${
+        <div className={`absolute inset-0 w-full h-full rounded-3xl p-6 flex flex-col justify-between backface-hidden rotate-y-180 shadow-2xl border-2 ${
           item.isMastered 
-            ? 'bg-gradient-to-br from-emerald-50 to-green-100 border-emerald-400' 
-            : 'bg-gradient-to-br from-amber-50 to-red-50 border-red-200'
+            ? 'bg-slate-950 border-emerald-400' 
+            : 'bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border-pink-500'
         }`}>
           {/* Top Bar */}
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-black text-pink-400 tracking-wider">
               {item.hanzi}
             </span>
             <button
               onClick={speak}
-              className="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-700"
+              className="p-2 rounded-full bg-slate-800 text-pink-300 border border-pink-500/30"
             >
               <Volume2 className="w-4 h-4" />
             </button>
@@ -129,17 +133,17 @@ export const VocabCard: React.FC<VocabCardProps> = ({ item, onToggleMastered }) 
 
           {/* Meaning & Pinyin */}
           <div className="text-center my-auto space-y-2">
-            <p className="text-2xl font-bold text-red-700 tracking-wider font-mono">
+            <p className="text-2xl font-black text-yellow-300 font-mono tracking-wider neon-text-yellow">
               {item.pinyin}
             </p>
-            <p className="text-xl font-extrabold text-slate-800">
+            <p className="text-2xl font-black text-white leading-tight">
               {item.meaning}
             </p>
 
             {item.notes && (
-              <div className="mt-3 p-2.5 bg-white/80 backdrop-blur-sm rounded-xl border border-amber-200/80 text-left text-xs text-amber-900 shadow-inner">
-                <div className="flex items-center gap-1 font-bold text-amber-700 mb-0.5">
-                  <Sparkles className="w-3 h-3" /> メモ・学習のコツ
+              <div className="mt-3 p-3 bg-slate-900/90 rounded-2xl border border-yellow-400/40 text-left text-xs text-amber-200 font-bold">
+                <div className="flex items-center gap-1 text-yellow-400 font-black mb-0.5">
+                  <Zap className="w-3.5 h-3.5" /> テスト直前メモ
                 </div>
                 {item.notes}
               </div>
@@ -147,20 +151,21 @@ export const VocabCard: React.FC<VocabCardProps> = ({ item, onToggleMastered }) 
           </div>
 
           {/* Mastered Button */}
-          <div className="border-t border-slate-200/60 pt-3">
+          <div className="border-t border-slate-800 pt-3">
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (!item.isMastered) sounds.playCorrect();
                 onToggleMastered(item.id);
               }}
-              className={`w-full py-2.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-sm ${
+              className={`w-full py-3 px-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 transition-all shadow-lg ${
                 item.isMastered
-                  ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200'
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                  : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:scale-102 text-white shadow-pink-500/30'
               }`}
             >
               <CheckCircle2 className="w-4 h-4" />
-              {item.isMastered ? '未習得に戻す' : '覚えた！(完了にする)'}
+              {item.isMastered ? '未暗記に戻す' : '覚えた！(脳汁回収)'}
             </button>
           </div>
         </div>
