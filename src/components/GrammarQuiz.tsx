@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { QuizItem } from '../types';
 import { initialMonsters } from '../data/monsters';
-import { CheckCircle, XCircle, RotateCcw, HelpCircle, Zap } from 'lucide-react';
+import { CheckCircle, XCircle, RotateCcw, HelpCircle, Zap, Heart, ShieldAlert, Flame } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sounds } from '../utils/sound';
 import { PixelKnight, PixelDragon, PixelSkeleton, PixelSlime, PixelTorch } from './PixelSprites';
@@ -11,6 +11,8 @@ interface GrammarQuizProps {
   comboCount?: number;
 }
 
+const MONSTER_ATTACK_INTERVAL = 5.0;
+
 export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
   const [shuffledList, setShuffledList] = useState<QuizItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -18,14 +20,22 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
   const [isAnswered, setIsAnswered] = useState<boolean>(false);
   const [isCorrect, setIsCorrect] = useState<boolean>(false);
 
-  // RPG Battle State
+  // RPG Player & Monster State
+  const [playerHp, setPlayerHp] = useState<number>(100);
+  const maxPlayerHp = 100;
   const [playerLevel, setPlayerLevel] = useState<number>(1);
   const [playerXp, setPlayerXp] = useState<number>(0);
+
   const [monsterIndex, setMonsterIndex] = useState<number>(0);
   const [monsterHp, setMonsterHp] = useState<number>(initialMonsters[0].maxHp);
   const [damagePopup, setDamagePopup] = useState<number | null>(null);
   const [monsterHit, setMonsterHit] = useState<boolean>(false);
   const [heroAttacking, setHeroAttacking] = useState<boolean>(false);
+  const [isPlayerHit, setIsPlayerHit] = useState<boolean>(false);
+
+  // ATB Timer State
+  const [timeLeft, setTimeLeft] = useState<number>(MONSTER_ATTACK_INTERVAL);
+  const questionStartTimeRef = useRef<number>(Date.now());
 
   // Items State
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({
@@ -53,8 +63,30 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
     setIsAnswered(false);
     setIsCorrect(false);
     setHiddenOptionIndices([]);
+    setTimeLeft(MONSTER_ATTACK_INTERVAL);
+    questionStartTimeRef.current = Date.now();
     if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
   }, [currentIndex, shuffledList]);
+
+  // Real-Time Monster Counter Attack Loop
+  useEffect(() => {
+    if (isAnswered || playerHp <= 0 || shuffledList.length === 0) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 0.1) {
+          sounds.playPlayerHurt();
+          setIsPlayerHit(true);
+          setTimeout(() => setIsPlayerHit(false), 350);
+          setPlayerHp((hp) => Math.max(0, hp - 15));
+          return MONSTER_ATTACK_INTERVAL;
+        }
+        return prev - 0.1;
+      });
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [isAnswered, playerHp, shuffledList]);
 
   const handleNext = () => {
     if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
@@ -68,13 +100,17 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
   };
 
   const handleCorrectAnswer = () => {
-    const baseDmg = isDoubleDamageActive ? 60 : 35;
+    const responseTimeSec = (Date.now() - questionStartTimeRef.current) / 1000;
+    const isSpeedAttack = responseTimeSec <= 2.5;
+
+    let baseDmg = isDoubleDamageActive ? 60 : 35;
+    if (isSpeedAttack) baseDmg = Math.round(baseDmg * 1.5);
     const finalDmg = baseDmg;
 
     setHeroAttacking(true);
     setTimeout(() => setHeroAttacking(false), 250);
 
-    if (isDoubleDamageActive) {
+    if (isDoubleDamageActive || isSpeedAttack) {
       sounds.playCriticalAttack();
       setIsDoubleDamageActive(false);
     } else {
@@ -94,7 +130,9 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
         confetti({ particleCount: 50, spread: 70, origin: { y: 0.5 } });
       } catch (e) {}
 
-      const xpGained = currentMonster.rewardXp;
+      setPlayerHp((hp) => Math.min(maxPlayerHp, hp + 25));
+
+      const xpGained = isSpeedAttack ? Math.round(currentMonster.rewardXp * 1.3) : currentMonster.rewardXp;
       const nextXp = playerXp + xpGained;
       const xpNeeded = playerLevel * 100;
 
@@ -102,6 +140,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
         sounds.playLevelUp();
         setPlayerLevel((l) => l + 1);
         setPlayerXp(nextXp - xpNeeded);
+        setPlayerHp(maxPlayerHp);
       } else {
         setPlayerXp(nextXp);
       }
@@ -122,7 +161,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
   };
 
   const handleSelectOption = (index: number) => {
-    if (isAnswered || !currentQuiz) return;
+    if (isAnswered || !currentQuiz || playerHp <= 0) return;
     setSelectedOption(index);
     setIsAnswered(true);
 
@@ -132,12 +171,15 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
     if (correct) {
       handleCorrectAnswer();
     } else {
-      sounds.playWrong();
+      sounds.playPlayerHurt();
+      setIsPlayerHit(true);
+      setTimeout(() => setIsPlayerHit(false), 350);
+      setPlayerHp((hp) => Math.max(0, hp - 20));
     }
   };
 
   const handleCheckReorder = (userAnswer: string[]) => {
-    if (isAnswered || !currentQuiz || !currentQuiz.correctReorder) return;
+    if (isAnswered || !currentQuiz || !currentQuiz.correctReorder || playerHp <= 0) return;
     setIsAnswered(true);
 
     const correct =
@@ -148,12 +190,15 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
     if (correct) {
       handleCorrectAnswer();
     } else {
-      sounds.playWrong();
+      sounds.playPlayerHurt();
+      setIsPlayerHit(true);
+      setTimeout(() => setIsPlayerHit(false), 350);
+      setPlayerHp((hp) => Math.max(0, hp - 20));
     }
   };
 
   const useHint5050 = () => {
-    if (itemCounts.hint_5050 <= 0 || isAnswered || !currentQuiz.options) return;
+    if (itemCounts.hint_5050 <= 0 || isAnswered || !currentQuiz.options || playerHp <= 0) return;
     sounds.playItemUse();
     setItemCounts((prev) => ({ ...prev, hint_5050: prev.hint_5050 - 1 }));
 
@@ -165,10 +210,15 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
   };
 
   const useDoubleDamage = () => {
-    if (itemCounts.double_damage <= 0 || isDoubleDamageActive) return;
+    if (itemCounts.double_damage <= 0 || isDoubleDamageActive || playerHp <= 0) return;
     sounds.playItemUse();
     setItemCounts((prev) => ({ ...prev, double_damage: prev.double_damage - 1 }));
     setIsDoubleDamageActive(true);
+  };
+
+  const handleContinueGame = () => {
+    setPlayerHp(maxPlayerHp);
+    setTimeLeft(MONSTER_ATTACK_INTERVAL);
   };
 
   const handleRestart = () => {
@@ -177,6 +227,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
     setShuffledList(reshuffled);
     setCurrentIndex(0);
     setMonsterHp(currentMonster.maxHp);
+    setPlayerHp(maxPlayerHp);
     setIsAnswered(false);
     setSelectedOption(null);
     setDamagePopup(null);
@@ -201,23 +252,51 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
+    <div className="max-w-2xl mx-auto space-y-4 relative">
+      {/* GAME OVER OVERLAY */}
+      {playerHp <= 0 && (
+        <div className="absolute inset-0 bg-slate-950/95 z-50 rounded-2xl flex flex-col items-center justify-center p-6 space-y-5 border-4 border-rose-600 shadow-2xl">
+          <div className="font-nes text-3xl sm:text-4xl text-rose-500 animate-pulse">
+            GAME OVER
+          </div>
+          <p className="text-sm font-bold text-slate-300 text-center">
+            モンスターの攻撃でHPが0になりました！
+          </p>
+          <button
+            onClick={handleContinueGame}
+            className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded border-2 border-amber-300 shadow-lg flex items-center gap-2"
+          >
+            <Flame className="w-5 h-5 text-red-700" /> HP100%回復してリトライ！ ▶️
+          </button>
+        </div>
+      )}
+
       {/* 1. RETRO HUD */}
       <div className="pixel-box p-3 sm:p-4 rounded-xl space-y-2 select-none">
         <div className="flex items-center justify-between text-xs font-bold text-slate-200 border-b border-slate-700 pb-2">
-          <div className="flex items-center gap-3">
-            <span className="bg-red-700 text-white font-nes text-[10px] px-2 py-1 border border-red-500 rounded">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="bg-red-700 text-white font-nes text-[10px] px-2 py-0.5 border border-red-500 rounded">
               LV.{playerLevel}
             </span>
+
             <div className="flex items-center gap-1">
-              <span className="text-yellow-400 font-bold text-[11px]">EXP</span>
-              <div className="w-24 bg-slate-800 h-2.5 border border-slate-600 rounded-none overflow-hidden">
+              <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+              <div className="w-20 sm:w-28 bg-slate-800 h-3 border border-slate-600 overflow-hidden relative">
                 <div
-                  className="bg-amber-400 h-full transition-all duration-300"
-                  style={{ width: `${xpPercent}%` }}
+                  className="bg-rose-500 h-full transition-all duration-200"
+                  style={{ width: `${(playerHp / maxPlayerHp) * 100}%` }}
                 />
+                <span className="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-bold text-white">
+                  HP {playerHp}/{maxPlayerHp}
+                </span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400">{playerXp}/{xpNeeded}</span>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-1">
+              <span className="text-yellow-400 font-bold text-[10px]">EXP</span>
+              <div className="w-16 bg-slate-800 h-2 border border-slate-600 overflow-hidden">
+                <div className="bg-amber-400 h-full transition-all duration-300" style={{ width: `${xpPercent}%` }} />
+              </div>
             </div>
           </div>
 
@@ -229,26 +308,26 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
           </button>
         </div>
 
-        {/* Item Counter */}
+        {/* Items & Active Timer */}
         <div className="flex items-center justify-between text-xs pt-1">
           <div className="flex items-center gap-2">
             <button
               onClick={useHint5050}
-              disabled={itemCounts.hint_5050 <= 0 || isAnswered || !currentQuiz.options}
-              className={`px-2.5 py-1 rounded border text-xs font-bold flex items-center gap-1.5 transition-all ${
+              disabled={itemCounts.hint_5050 <= 0 || isAnswered || !currentQuiz.options || playerHp <= 0}
+              className={`px-2 py-1 rounded border text-xs font-bold flex items-center gap-1 transition-all ${
                 itemCounts.hint_5050 > 0 && !isAnswered
                   ? 'bg-slate-800 hover:bg-slate-700 text-yellow-300 border-amber-500/60'
                   : 'bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed'
               }`}
             >
               <HelpCircle className="w-3.5 h-3.5 text-yellow-400" />
-              50/50ヒント (<span className="font-mono">{itemCounts.hint_5050}</span>)
+              50/50 (<span className="font-mono">{itemCounts.hint_5050}</span>)
             </button>
 
             <button
               onClick={useDoubleDamage}
-              disabled={itemCounts.double_damage <= 0 || isDoubleDamageActive || isAnswered}
-              className={`px-2.5 py-1 rounded border text-xs font-bold flex items-center gap-1.5 transition-all ${
+              disabled={itemCounts.double_damage <= 0 || isDoubleDamageActive || isAnswered || playerHp <= 0}
+              className={`px-2 py-1 rounded border text-xs font-bold flex items-center gap-1 transition-all ${
                 isDoubleDamageActive
                   ? 'bg-amber-500 text-slate-950 font-black border-amber-300 animate-pulse'
                   : itemCounts.double_damage > 0 && !isAnswered
@@ -257,24 +336,28 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
               }`}
             >
               <Zap className="w-3.5 h-3.5 text-amber-400" />
-              {isDoubleDamageActive ? '⚡ 2倍攻撃中!' : `2倍攻撃 (${itemCounts.double_damage})`}
+              {isDoubleDamageActive ? '2倍中!' : `2倍 (${itemCounts.double_damage})`}
             </button>
           </div>
 
-          <span className="text-[11px] text-slate-400 font-mono">
-            問 {currentIndex + 1} / {shuffledList.length}
-          </span>
+          <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded border border-rose-500/50">
+            <ShieldAlert className="w-3.5 h-3.5 text-rose-400 animate-bounce" />
+            <span className="text-[10px] font-bold text-slate-300">敵の被弾まで:</span>
+            <span className="font-mono font-bold text-xs text-rose-400">{timeLeft.toFixed(1)}s</span>
+          </div>
         </div>
       </div>
 
       {/* 2. 8-BIT BATTLE ARENA */}
-      <div className="relative h-48 sm:h-56 bg-slate-950 rounded-xl border-4 border-slate-700 overflow-hidden shadow-2xl flex flex-col justify-between">
+      <div className={`relative h-48 sm:h-56 bg-slate-950 rounded-xl border-4 border-slate-700 overflow-hidden shadow-2xl flex flex-col justify-between ${
+        isPlayerHit ? 'ring-4 ring-rose-600 animate-pulse' : ''
+      }`}>
         <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:12px_12px]" />
 
         <div className="absolute top-4 left-10 z-10"><PixelTorch /></div>
         <div className="absolute top-4 right-10 z-10"><PixelTorch /></div>
 
-        <div className="absolute top-3 left-0 right-0 z-20 flex justify-center">
+        <div className="absolute top-3 left-0 right-0 z-20 flex flex-col items-center gap-1">
           <div className="bg-slate-900/90 border border-slate-600 px-4 py-1 rounded-full flex items-center gap-3">
             <span className="font-bold text-xs text-rose-400 flex items-center gap-1">
               👾 {currentMonster.name}
@@ -289,11 +372,18 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
               </span>
             </div>
           </div>
+
+          <div className="w-48 bg-slate-900 h-1.5 border border-rose-950 overflow-hidden rounded">
+            <div
+              className="bg-gradient-to-r from-rose-500 to-amber-400 h-full transition-all duration-100"
+              style={{ width: `${(timeLeft / MONSTER_ATTACK_INTERVAL) * 100}%` }}
+            />
+          </div>
         </div>
 
         <div className="flex-1 flex items-end justify-between px-6 sm:px-12 pb-4 relative z-10">
           <div className="flex flex-col items-center">
-            <PixelKnight isAttacking={heroAttacking} />
+            <PixelKnight isAttacking={heroAttacking} isHit={isPlayerHit} />
             <div className="w-20 sm:w-28 h-3 bg-slate-800 border-t-2 border-slate-600 rounded-none shadow-md" />
           </div>
 
@@ -350,7 +440,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
               return (
                 <button
                   key={idx}
-                  disabled={isAnswered || isHidden}
+                  disabled={isAnswered || isHidden || playerHp <= 0}
                   onClick={() => handleSelectOption(idx)}
                   className={`w-full text-left p-3.5 rounded border-2 transition-all flex items-center justify-between font-bold text-sm sm:text-base ${btnStyle}`}
                 >
@@ -373,7 +463,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
           </div>
         )}
 
-        {/* Reorder Interactive Component */}
+        {/* Reorder Component */}
         {currentQuiz.type === 'reorder' && currentQuiz.tokens && (
           <ReorderComponent
             quiz={currentQuiz}
@@ -382,7 +472,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
           />
         )}
 
-        {/* 不正解時のみ表示 */}
+        {/* 不正解時のみ解説表示 */}
         {isAnswered && !isCorrect && (
           <div className="p-4 rounded bg-rose-950/80 border-2 border-rose-600 space-y-3 animate-pop">
             <div className="flex items-center gap-2 font-bold text-sm text-rose-300">

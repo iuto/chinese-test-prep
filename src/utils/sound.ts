@@ -60,6 +60,26 @@ class SoundManager {
     } catch (e) {}
   }
 
+  // 8-bit Player Hurt Sound (Low pitch impact)
+  playPlayerHurt() {
+    try {
+      const ctx = this.getContext();
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } catch (e) {}
+  }
+
   // 8-bit NES Victory Fanfare Melody
   playVictory() {
     try {
@@ -108,21 +128,7 @@ class SoundManager {
 
   // 8-bit Damage / Buzz sound
   playWrong() {
-    try {
-      const ctx = this.getContext();
-      const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(140, now);
-      osc.frequency.linearRampToValueAtTime(70, now + 0.2);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.2);
-    } catch (e) {}
+    this.playPlayerHurt();
   }
 
   // Flip Card sound
