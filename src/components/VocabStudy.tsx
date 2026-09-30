@@ -80,6 +80,17 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
     if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
   }, [currentIndex, shuffledList]);
 
+  // Subtle Background Passive Damage Loop (-2 HP every 4s, NO visual timer gauge)
+  useEffect(() => {
+    if (isAnswered || playerHp <= 0 || shuffledList.length === 0) return;
+
+    const timer = setInterval(() => {
+      setPlayerHp((hp) => Math.max(0, hp - 2));
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [isAnswered, playerHp, shuffledList]);
+
   const speak = (text: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!('speechSynthesis' in window)) return;
@@ -181,11 +192,11 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
         handleNext();
       }, 750);
     } else {
-      // Wrong Answer -> Monster Hits Player
+      // Wrong Answer -> Monster Hits Player (-15 HP)
       sounds.playPlayerHurt();
       setIsPlayerHit(true);
       setTimeout(() => setIsPlayerHit(false), 350);
-      setPlayerHp((hp) => Math.max(0, hp - 20));
+      setPlayerHp((hp) => Math.max(0, hp - 15));
     }
   };
 

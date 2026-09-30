@@ -63,6 +63,17 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
     if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
   }, [currentIndex, shuffledList]);
 
+  // Subtle Background Passive Damage Loop (-2 HP every 4s, NO visual timer gauge)
+  useEffect(() => {
+    if (isAnswered || playerHp <= 0 || shuffledList.length === 0) return;
+
+    const timer = setInterval(() => {
+      setPlayerHp((hp) => Math.max(0, hp - 2));
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [isAnswered, playerHp, shuffledList]);
+
   const handleNext = () => {
     if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
     if (currentIndex < shuffledList.length - 1) {
@@ -149,7 +160,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
       sounds.playPlayerHurt();
       setIsPlayerHit(true);
       setTimeout(() => setIsPlayerHit(false), 350);
-      setPlayerHp((hp) => Math.max(0, hp - 20));
+      setPlayerHp((hp) => Math.max(0, hp - 15));
     }
   };
 
@@ -176,7 +187,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
       sounds.playPlayerHurt();
       setIsPlayerHit(true);
       setTimeout(() => setIsPlayerHit(false), 350);
-      setPlayerHp((hp) => Math.max(0, hp - 20));
+      setPlayerHp((hp) => Math.max(0, hp - 15));
     }
   };
 
