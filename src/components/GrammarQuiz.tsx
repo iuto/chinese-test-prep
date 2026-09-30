@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { QuizItem } from '../types';
-import { CheckCircle, XCircle, ArrowRight, RotateCcw, Trophy, Sparkles } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, RotateCcw, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sounds } from '../utils/sound';
 
@@ -17,13 +17,25 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
   const [score, setScore] = useState<number>(0);
   const [isFinished, setIsFinished] = useState<boolean>(false);
 
+  const autoNextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentQuiz = quizList[currentIndex];
 
   useEffect(() => {
     setSelectedOption(null);
     setIsAnswered(false);
     setIsCorrect(false);
+    if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
   }, [currentIndex, quizList]);
+
+  const handleNext = () => {
+    if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
+    if (currentIndex < quizList.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    } else {
+      sounds.playLevelUp();
+      setIsFinished(true);
+    }
+  };
 
   const handleSelectOption = (index: number) => {
     if (isAnswered || !currentQuiz) return;
@@ -36,8 +48,16 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
     if (correct) {
       setScore((prev) => prev + 1);
       sounds.playCorrect();
-      triggerConfetti();
+      try {
+        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+      } catch (e) {}
+
+      // 💥 正解した時: 0.75秒後に自動でスムーズに次の問題へ進む！
+      autoNextTimerRef.current = setTimeout(() => {
+        handleNext();
+      }, 750);
     } else {
+      // ❌ 間違えた時: 不正解音を鳴らし、ユーザーが「次へ」を押して解説を読むまで待機
       sounds.playWrong();
     }
   };
@@ -54,32 +74,21 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
     if (correct) {
       setScore((prev) => prev + 1);
       sounds.playCorrect();
-      triggerConfetti();
+      try {
+        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+      } catch (e) {}
+
+      // 💥 正解した時: 0.75秒後に自動でスムーズに次の問題へ進む！
+      autoNextTimerRef.current = setTimeout(() => {
+        handleNext();
+      }, 750);
     } else {
       sounds.playWrong();
     }
   };
 
-  const triggerConfetti = () => {
-    try {
-      confetti({
-        particleCount: 50,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
-    } catch (e) {}
-  };
-
-  const handleNext = () => {
-    if (currentIndex < quizList.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      sounds.playLevelUp();
-      setIsFinished(true);
-    }
-  };
-
   const handleRestart = () => {
+    if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
     setCurrentIndex(0);
     setScore(0);
     setIsFinished(false);
@@ -101,7 +110,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xs font-extrabold text-red-700 bg-red-50 px-3 py-1 rounded-full border border-red-200">
-            文法1問1答ゲーム
+            文法一問一答
           </span>
           <span className="text-xs font-bold text-slate-500">
             第 {currentIndex + 1} / {quizList.length} 問
@@ -133,10 +142,6 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
             </p>
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-2xl text-xs font-bold text-slate-600 border border-slate-200">
-            正解率: {Math.round((score / quizList.length) * 100)}%
-          </div>
-
           <button
             onClick={handleRestart}
             className="w-full py-4 bg-red-700 hover:bg-red-800 text-white rounded-2xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
@@ -165,7 +170,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
           {currentQuiz.type === 'multiple_choice' && currentQuiz.options && (
             <div className="space-y-3">
               {currentQuiz.options.map((opt, idx) => {
-                let btnStyle = 'border-slate-200 hover:border-red-400 bg-white text-slate-800';
+                let btnStyle = 'border-slate-200 hover:border-red-400 bg-white text-slate-800 active:scale-98';
 
                 if (isAnswered) {
                   if (idx === currentQuiz.correctAnswerIndex) {
@@ -192,7 +197,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
                     </span>
 
                     {isAnswered && idx === currentQuiz.correctAnswerIndex && (
-                      <CheckCircle className="w-5 h-5 text-emerald-600" />
+                      <CheckCircle className="w-5 h-5 text-emerald-600 animate-bounce" />
                     )}
                     {isAnswered && idx === selectedOption && idx !== currentQuiz.correctAnswerIndex && (
                       <XCircle className="w-5 h-5 text-red-500" />
@@ -212,23 +217,12 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
             />
           )}
 
-          {/* Result & Explanation */}
-          {isAnswered && (
-            <div className={`p-4 sm:p-5 rounded-2xl space-y-3 transition-all ${
-              isCorrect ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'
-            }`}>
-              <div className="flex items-center gap-2 font-extrabold text-base">
-                {isCorrect ? (
-                  <>
-                    <CheckCircle className="w-5 h-5 text-emerald-600" />
-                    <span className="text-emerald-800">正解です！</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="w-5 h-5 text-red-600" />
-                    <span className="text-red-800">不正解です</span>
-                  </>
-                )}
+          {/* ❌ 間違えた時のみ「次へ進む →」ボタンと解説を表示する */}
+          {isAnswered && !isCorrect && (
+            <div className="p-4 sm:p-5 rounded-2xl bg-red-50 border border-red-200 space-y-3 animate-pop">
+              <div className="flex items-center gap-2 font-extrabold text-base text-red-800">
+                <XCircle className="w-5 h-5 text-red-600" />
+                <span>不正解です</span>
               </div>
 
               {currentQuiz.grammarNote && (
@@ -245,7 +239,7 @@ export const GrammarQuiz: React.FC<GrammarQuizProps> = ({ quizList }) => {
                 onClick={handleNext}
                 className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-sm shadow-md flex items-center justify-center gap-2 mt-2 transition-all"
               >
-                {currentIndex === quizList.length - 1 ? '結果を見る' : '次の問題へ進む →'}
+                解説を理解した！次へ進む →
               </button>
             </div>
           )}
@@ -283,7 +277,6 @@ const ReorderComponent: React.FC<{
 
   return (
     <div className="space-y-4">
-      {/* Target User Sentence Drop Zone */}
       <div className="min-h-[60px] p-3 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex flex-wrap gap-2 items-center">
         {userTokens.length === 0 && (
           <span className="text-xs text-slate-400 font-medium italic">
@@ -302,7 +295,6 @@ const ReorderComponent: React.FC<{
         ))}
       </div>
 
-      {/* Available Token Pool */}
       <div className="flex flex-wrap gap-2">
         {availableTokens.map((t, idx) => (
           <button
