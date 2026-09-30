@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Lesson, VocabItem, QuizItem } from '../types';
-import { BookOpen, HelpCircle, FileText, Settings, CheckSquare, Square, Trophy, ChevronRight, Menu, X } from 'lucide-react';
+import { Lesson, VocabItem, QuizItem, SubjectId } from '../types';
+import { subjectList } from '../data/initialData';
+import { BookOpen, HelpCircle, FileText, Settings, CheckSquare, Square, Trophy, ChevronRight, Menu, X, Swords, GraduationCap } from 'lucide-react';
 import { VocabStudy } from './VocabStudy';
 import { GrammarQuiz } from './GrammarQuiz';
 import { GrammarCheatSheet } from './GrammarCheatSheet';
@@ -27,9 +28,15 @@ export const AppShell: React.FC<AppShellProps> = ({
   onToggleMastered,
   onResetMastered,
 }) => {
+  const [selectedSubjectId, setSelectedSubjectId] = useState<SubjectId>('chinese');
   const [activeTab, setActiveTab] = useState<'vocab' | 'quiz' | 'cheat_sheet' | 'editor'>('vocab');
   const [selectedLessonIds, setSelectedLessonIds] = useState<string[]>(['lesson7']);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+
+  // Filter lessons by subject
+  const currentSubjectLessons = lessons.filter(
+    (l) => selectedSubjectId === 'general' || l.subjectId === selectedSubjectId
+  );
 
   const toggleLesson = (id: string) => {
     if (selectedLessonIds.includes(id)) {
@@ -44,7 +51,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   };
 
   const selectAllLessons = () => {
-    setSelectedLessonIds(lessons.map((l) => l.id));
+    setSelectedLessonIds(currentSubjectLessons.map((l) => l.id));
   };
 
   // Filtered Vocab and Quiz for selected lessons
@@ -64,21 +71,51 @@ export const AppShell: React.FC<AppShellProps> = ({
       {/* DESKTOP APP SIDEBAR (PC Main Layout: Left Fixed 280px)      */}
       {/* ========================================================= */}
       <aside className="hidden lg:flex flex-col w-72 bg-slate-900 text-white border-r border-slate-800 shrink-0 select-none">
-        {/* App Title Header */}
+        {/* App Title & Unified Brand (PayLog Quest) */}
         <div className="p-5 border-b border-slate-800 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-600 to-rose-700 flex items-center justify-center text-xl shadow-md">
-            🇨🇳
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-600 via-rose-600 to-purple-600 flex items-center justify-center text-xl shadow-lg border border-red-400/40">
+            🎓
           </div>
           <div>
-            <h1 className="font-extrabold text-base text-white tracking-tight leading-tight">
-              PayLog 中国語
+            <h1 className="font-extrabold text-base text-white tracking-tight leading-tight flex items-center gap-1">
+              PayLog Quest
+              <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.2 rounded font-black">RPG</span>
             </h1>
-            <p className="text-[11px] text-slate-400 font-bold">テスト対策 デスクトップApp</p>
+            <p className="text-[10px] text-slate-400 font-bold">全科目対応 テスト対策バトルApp</p>
           </div>
         </div>
 
-        {/* Navigation Sections */}
+        {/* Navigation & Subject Selection */}
         <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-6">
+          {/* Section 0: Subject Selector (中国語, 英語, 他科目) */}
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2">
+              学習科目・コース
+            </span>
+            <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+              {subjectList.map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => {
+                    setSelectedSubjectId(sub.id);
+                    const subLessons = lessons.filter((l) => sub.id === 'general' || l.subjectId === sub.id);
+                    if (subLessons.length > 0) {
+                      setSelectedLessonIds([subLessons[0].id]);
+                    }
+                  }}
+                  className={`py-2 px-1 rounded-xl text-center font-bold text-xs transition-all flex flex-col items-center gap-1 ${
+                    selectedSubjectId === sub.id
+                      ? 'bg-red-700 text-white shadow-md border border-red-500'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  <span className="text-base">{sub.icon}</span>
+                  <span className="text-[10px] truncate max-w-full">{sub.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Section 1: Mode Select */}
           <div className="space-y-1.5">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2">
@@ -94,7 +131,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               }`}
             >
               <span className="flex items-center gap-2.5">
-                <BookOpen className="w-4 h-4" /> 単語暗記ゲーム
+                <Swords className="w-4 h-4 text-red-400" /> 単語バトルゲーム
               </span>
               <ChevronRight className="w-3.5 h-3.5 opacity-60" />
             </button>
@@ -108,7 +145,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               }`}
             >
               <span className="flex items-center gap-2.5">
-                <HelpCircle className="w-4 h-4" /> 文法クイズゲーム
+                <HelpCircle className="w-4 h-4 text-amber-400" /> 文法クイズバトル
               </span>
               <ChevronRight className="w-3.5 h-3.5 opacity-60" />
             </button>
@@ -122,7 +159,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               }`}
             >
               <span className="flex items-center gap-2.5">
-                <FileText className="w-4 h-4" /> 文法まとめシート
+                <FileText className="w-4 h-4 text-emerald-400" /> まとめシート
               </span>
               <ChevronRight className="w-3.5 h-3.5 opacity-60" />
             </button>
@@ -136,7 +173,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               }`}
             >
               <span className="flex items-center gap-2.5">
-                <Settings className="w-4 h-4" /> データ編集・追加
+                <Settings className="w-4 h-4 text-cyan-400" /> データ追加・問題自作
               </span>
               <ChevronRight className="w-3.5 h-3.5 opacity-60" />
             </button>
@@ -146,7 +183,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between px-2">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                出題対象の課 (複数選択)
+                出題範囲の課 (複数選択)
               </span>
               <button
                 onClick={selectAllLessons}
@@ -157,7 +194,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
 
             <div className="space-y-1 bg-slate-950 p-2 rounded-2xl border border-slate-800">
-              {lessons.map((lesson) => {
+              {currentSubjectLessons.map((lesson) => {
                 const isSelected = selectedLessonIds.includes(lesson.id);
                 return (
                   <div
@@ -189,7 +226,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           <div className="bg-slate-900 p-3 rounded-2xl border border-slate-800 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-slate-400 flex items-center gap-1">
-                <Trophy className="w-3.5 h-3.5 text-amber-400" /> 暗記進捗
+                <Trophy className="w-3.5 h-3.5 text-amber-400" /> 暗記達成率
               </span>
               <span className="text-red-400 font-extrabold">
                 {masteredCount} / {currentVocabList.length} 語
@@ -212,8 +249,8 @@ export const AppShell: React.FC<AppShellProps> = ({
         {/* Mobile App Header (Visible only on mobile/tablet) */}
         <header className="lg:hidden bg-slate-900 text-white p-4 border-b border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <span className="text-xl">🇨🇳</span>
-            <h1 className="font-extrabold text-sm text-white">PayLog 中国語 App</h1>
+            <span className="text-xl">🎓</span>
+            <h1 className="font-extrabold text-sm text-white">PayLog Quest</h1>
           </div>
           <button
             onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
@@ -227,13 +264,33 @@ export const AppShell: React.FC<AppShellProps> = ({
         {isMobileSidebarOpen && (
           <div className="lg:hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col p-4 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="font-extrabold text-white text-base">メニュー & 課の選択</h2>
+              <h2 className="font-extrabold text-white text-base">科目 ＆ メニュー選択</h2>
               <button
                 onClick={() => setIsMobileSidebarOpen(false)}
                 className="p-2 text-slate-400 hover:text-white"
               >
                 <X className="w-6 h-6" />
               </button>
+            </div>
+
+            {/* Subject Selector on Mobile */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-slate-400">学習科目</span>
+              <div className="grid grid-cols-3 gap-2">
+                {subjectList.map((sub) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => {
+                      setSelectedSubjectId(sub.id);
+                      const subLessons = lessons.filter((l) => sub.id === 'general' || l.subjectId === sub.id);
+                      if (subLessons.length > 0) setSelectedLessonIds([subLessons[0].id]);
+                    }}
+                    className={`p-2.5 rounded-xl font-bold text-xs border text-center ${selectedSubjectId === sub.id ? 'bg-red-700 text-white border-red-500' : 'bg-slate-900 text-slate-300'}`}
+                  >
+                    {sub.icon} {sub.name}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -256,7 +313,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
             <div className="space-y-2 flex-1 overflow-y-auto">
               <span className="text-xs font-bold text-slate-400">対象の課</span>
-              {lessons.map((l) => (
+              {currentSubjectLessons.map((l) => (
                 <div
                   key={l.id}
                   onClick={() => toggleLesson(l.id)}
@@ -277,7 +334,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           </div>
         )}
 
-        {/* Main App Content Body (Scrollable Container) */}
+        {/* Main App Content Body */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-8 flex flex-col justify-center">
           {activeTab === 'vocab' && (
             <VocabStudy

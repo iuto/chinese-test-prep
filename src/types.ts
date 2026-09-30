@@ -1,3 +1,12 @@
+export type SubjectId = 'chinese' | 'english' | 'general';
+
+export interface Subject {
+  id: SubjectId;
+  name: string;
+  icon: string;
+  badge: string;
+}
+
 export type VocabCategory = 
   | '時間'
   | '動詞'
@@ -5,11 +14,14 @@ export type VocabCategory =
   | '前置詞'
   | '形容詞'
   | '副詞'
+  | '英単語'
+  | '英文法'
   | '会話・読トレ'
   | '手書き・補足';
 
 export interface Lesson {
   id: string;
+  subjectId: SubjectId;
   number: number;
   title: string;
   description: string;
@@ -22,8 +34,9 @@ export interface Lesson {
 export interface VocabItem {
   id: string;
   lessonId: string;
-  hanzi: string;
-  pinyin: string;
+  subjectId?: SubjectId;
+  hanzi: string; // 共通の見出し語 (英単語・中国語など)
+  pinyin: string; // 発音記号 / ピンイン
   meaning: string;
   category: VocabCategory;
   notes?: string;
@@ -35,9 +48,10 @@ export type QuizType = 'multiple_choice' | 'reorder' | 'fill_in';
 export interface QuizItem {
   id: string;
   lessonId: string;
+  subjectId?: SubjectId;
   title: string;
   type: QuizType;
-  category: '時点vs時量' | '从・到・离' | '結果補語' | '二vs两' | '総合';
+  category: string;
   question: string;
   promptJp?: string;
   options?: string[];
@@ -51,6 +65,7 @@ export interface QuizItem {
 export interface GrammarRuleSummary {
   id: string;
   lessonId: string;
+  subjectId?: SubjectId;
   title: string;
   formula: string;
   description: string;
@@ -81,12 +96,4 @@ export interface InventoryItem {
   icon: string;
   count: number;
   description: string;
-}
-
-export interface PlayerState {
-  level: number;
-  xp: number;
-  maxXp: number;
-  coins: number;
-  items: Record<ItemType, number>;
 }
