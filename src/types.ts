@@ -8,8 +8,20 @@ export type VocabCategory =
   | '会話・読トレ'
   | '手書き・補足';
 
+export interface Lesson {
+  id: string;
+  number: number;
+  title: string;
+  description: string;
+  badge: string;
+  vocabCount: number;
+  quizCount: number;
+  isUnlocked: boolean;
+}
+
 export interface VocabItem {
   id: string;
+  lessonId: string;
   hanzi: string;
   pinyin: string;
   meaning: string;
@@ -22,21 +34,23 @@ export type QuizType = 'multiple_choice' | 'reorder' | 'fill_in';
 
 export interface QuizItem {
   id: string;
+  lessonId: string;
   title: string;
   type: QuizType;
   category: '時点vs時量' | '从・到・离' | '結果補語' | '二vs两' | '総合';
   question: string;
-  promptJp?: string; // 日本語の訳・指示
-  options?: string[]; // 選択肢
+  promptJp?: string;
+  options?: string[];
   correctAnswerIndex?: number;
-  correctReorder?: string[]; // 並べ替えの正解配列
-  tokens?: string[]; // 並べ替え用単語パーツ
+  correctReorder?: string[];
+  tokens?: string[];
   explanation: string;
-  grammarNote?: string; // 関連する文法公式
+  grammarNote?: string;
 }
 
 export interface GrammarRuleSummary {
   id: string;
+  lessonId: string;
   title: string;
   formula: string;
   description: string;
