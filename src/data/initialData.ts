@@ -3,7 +3,6 @@ import { Subject, Lesson, VocabItem, QuizItem, GrammarRuleSummary } from '../typ
 export const subjectList: Subject[] = [
   { id: 'chinese', name: '中国語', icon: '🇨🇳', badge: '履修科目' },
   { id: 'english', name: '英語 (English)', icon: '🇬🇧', badge: '対応中' },
-  { id: 'general', name: '全科目・カスタム', icon: '📚', badge: '自由追加' },
 ];
 
 export const lessonList: Lesson[] = [

@@ -84,7 +84,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2">
               学習科目・コース
             </span>
-            <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+            <div className="grid grid-cols-2 gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
               {subjectList.map((sub) => (
                 <button
                   key={sub.id}
@@ -265,7 +265,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             {/* Subject Selector on Mobile */}
             <div className="space-y-2">
               <span className="text-xs font-bold text-slate-400">学習科目</span>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {subjectList.map((sub) => (
                   <button
                     key={sub.id}
