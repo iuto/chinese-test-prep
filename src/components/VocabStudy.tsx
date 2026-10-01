@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { VocabItem } from '../types';
-import { initialMonsters } from '../data/monsters';
-import { Volume2, CheckCircle, XCircle, RotateCcw, HelpCircle, Zap, Heart, Flame } from 'lucide-react';
+import { initialMonsters, itemDefinitions } from '../data/monsters';
+import { Volume2, CheckCircle, XCircle, RotateCcw, Trophy, Zap, Shield, HelpCircle, Swords, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { sounds } from '../utils/sound';
-import { PixelKnight, PixelDragon, PixelSkeleton, PixelSlime, PixelTorch } from './PixelSprites';
+import { HeroSprite, MonsterSprite } from './PixelSprites';
 
 interface VocabStudyProps {
   vocabList: VocabItem[];
@@ -16,6 +16,7 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
   vocabList,
   onToggleMastered,
 }) => {
+  // Always shuffle the list for battle!
   const [shuffledList, setShuffledList] = useState<VocabItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -23,24 +24,38 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
   const [isCorrect, setIsCorrect] = useState<boolean>(false);
 
   // RPG Player & Monster State
-  const [playerHp, setPlayerHp] = useState<number>(100);
-  const maxPlayerHp = 100;
   const [playerLevel, setPlayerLevel] = useState<number>(1);
   const [playerXp, setPlayerXp] = useState<number>(0);
-
+  const [playerHp, setPlayerHp] = useState<number>(100);
   const [monsterIndex, setMonsterIndex] = useState<number>(0);
   const [monsterHp, setMonsterHp] = useState<number>(initialMonsters[0].maxHp);
-  const [damagePopup, setDamagePopup] = useState<{ amount: number; isCritical: boolean; label?: string } | null>(null);
+  const [damagePopup, setDamagePopup] = useState<{ amount: number; isCritical: boolean } | null>(null);
   const [monsterHit, setMonsterHit] = useState<boolean>(false);
-  const [heroAttacking, setHeroAttacking] = useState<boolean>(false);
-  const [isPlayerHit, setIsPlayerHit] = useState<boolean>(false);
+  const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
+  const [isHeroAttacking, setIsHeroAttacking] = useState<boolean>(false);
+  const [isHeroHurt, setIsHeroHurt] = useState<boolean>(false);
 
-  const questionStartTimeRef = useRef<number>(Date.now());
+  // Passive damage timer (-2 HP every 4s while answering)
+  useEffect(() => {
+    if (!isGameStarted || isAnswered) return;
+    const timer = setInterval(() => {
+      setPlayerHp((prev) => {
+        const next = Math.max(10, prev - 2);
+        if (next < prev) {
+          setIsHeroHurt(true);
+          setTimeout(() => setIsHeroHurt(false), 500);
+        }
+        return next;
+      });
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [isGameStarted, isAnswered, currentIndex]);
 
   // Items State
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({
     hint_5050: 2,
     double_damage: 1,
+    shield: 1,
   });
   const [isDoubleDamageActive, setIsDoubleDamageActive] = useState<boolean>(false);
   const [hiddenOptionIndices, setHiddenOptionIndices] = useState<number[]>([]);
@@ -59,7 +74,7 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
   const currentItem = shuffledList[currentIndex];
   const currentMonster = initialMonsters[monsterIndex % initialMonsters.length];
 
-  // 4-choice options generator
+  // Generate 4-choice options
   const options = useMemo(() => {
     if (!currentItem || shuffledList.length === 0) return [];
     const others = shuffledList.filter((v) => v.id !== currentItem.id);
@@ -70,26 +85,13 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
 
   const correctAnswerIndex = options.findIndex((opt) => opt.id === currentItem?.id);
 
-  // Reset state on new question
   useEffect(() => {
     setSelectedOption(null);
     setIsAnswered(false);
     setIsCorrect(false);
     setHiddenOptionIndices([]);
-    questionStartTimeRef.current = Date.now();
     if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
   }, [currentIndex, shuffledList]);
-
-  // Subtle Background Passive Damage Loop (-2 HP every 4s, NO visual timer gauge)
-  useEffect(() => {
-    if (isAnswered || playerHp <= 0 || shuffledList.length === 0) return;
-
-    const timer = setInterval(() => {
-      setPlayerHp((hp) => Math.max(0, hp - 2));
-    }, 4000);
-
-    return () => clearInterval(timer);
-  }, [isAnswered, playerHp, shuffledList]);
 
   const speak = (text: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -106,6 +108,7 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
     if (currentIndex < shuffledList.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
+      // Re-shuffle for infinite arcade mode!
       const reshuffled = [...vocabList].sort(() => Math.random() - 0.5);
       setShuffledList(reshuffled);
       setCurrentIndex(0);
@@ -113,7 +116,7 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
   };
 
   const handleSelectOption = (idx: number) => {
-    if (isAnswered || playerHp <= 0) return;
+    if (isAnswered) return;
     setSelectedOption(idx);
     setIsAnswered(true);
 
@@ -121,47 +124,40 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
     setIsCorrect(correct);
 
     if (correct) {
-      const responseTimeSec = (Date.now() - questionStartTimeRef.current) / 1000;
-      const isSpeedAttack = responseTimeSec <= 2.5;
+      setIsHeroAttacking(true);
+      setTimeout(() => setIsHeroAttacking(false), 450);
+      setPlayerHp((prev) => Math.min(100, prev + 10)); // Heal on correct answer
 
-      let baseDmg = isDoubleDamageActive ? 60 : 30;
-      if (isSpeedAttack) baseDmg = Math.round(baseDmg * 1.5);
+      // Calculate Attack Damage (Base 30, Double Damage = 60)
+      const baseDmg = isDoubleDamageActive ? 60 : 30;
       const finalDmg = baseDmg;
-      const isCrit = isDoubleDamageActive || isSpeedAttack;
-
-      // Attack Animation & Sound
-      setHeroAttacking(true);
-      setTimeout(() => setHeroAttacking(false), 250);
+      const isCrit = isDoubleDamageActive;
 
       if (isCrit) {
         sounds.playCriticalAttack();
-        setIsDoubleDamageActive(false);
+        setIsDoubleDamageActive(false); // Reset buff
       } else {
         sounds.playAttack();
       }
 
-      setDamagePopup({
-        amount: finalDmg,
-        isCritical: isCrit,
-        label: isSpeedAttack ? '⚡ SPEED STRIKE!' : isDoubleDamageActive ? '💥 2倍ダメージ!' : undefined,
-      });
+      // Damage Animation & Monster Shake
+      setDamagePopup({ amount: finalDmg, isCritical: isCrit });
       setMonsterHit(true);
       setTimeout(() => setMonsterHit(false), 400);
 
+      // Monster HP Reduction
       const newHp = Math.max(0, monsterHp - finalDmg);
       setMonsterHp(newHp);
 
-      // Defeat Monster
+      // Check Monster Defeated
       if (newHp === 0) {
         sounds.playVictory();
         try {
-          confetti({ particleCount: 50, spread: 70, origin: { y: 0.5 } });
+          confetti({ particleCount: 60, spread: 80, origin: { y: 0.5 } });
         } catch (e) {}
 
-        // Defeat Bonus: Heal Player 25 HP
-        setPlayerHp((hp) => Math.min(maxPlayerHp, hp + 25));
-
-        const xpGained = isSpeedAttack ? Math.round(currentMonster.rewardXp * 1.3) : currentMonster.rewardXp;
+        // Reward XP & Level UP Check
+        const xpGained = currentMonster.rewardXp;
         const nextXp = playerXp + xpGained;
         const xpNeeded = playerLevel * 100;
 
@@ -169,11 +165,11 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
           sounds.playLevelUp();
           setPlayerLevel((lvl) => lvl + 1);
           setPlayerXp(nextXp - xpNeeded);
-          setPlayerHp(maxPlayerHp); // Full heal on level up
         } else {
           setPlayerXp(nextXp);
         }
 
+        // Spawn Next Monster
         setTimeout(() => {
           const nextIndex = monsterIndex + 1;
           setMonsterIndex(nextIndex);
@@ -187,33 +183,23 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
         onToggleMastered(currentItem.id);
       }
 
+      // Auto-next in 0.75s on correct
       autoNextTimerRef.current = setTimeout(() => {
         setDamagePopup(null);
         handleNext();
       }, 750);
     } else {
-      // Wrong Answer -> Monster Hits Player (-15 HP)
-      sounds.playPlayerHurt();
-      setIsPlayerHit(true);
-      setTimeout(() => setIsPlayerHit(false), 350);
-      setPlayerHp((hp) => Math.max(0, hp - 15));
+      sounds.playWrong();
     }
   };
 
-  // "わからない" (Don't Know / Skip) Handler
-  const handleDontKnow = () => {
-    if (isAnswered || playerHp <= 0) return;
-    setIsAnswered(true);
-    setIsCorrect(false);
-    setSelectedOption(null);
-    sounds.playPlayerHurt();
-  };
-
+  // ITEM USE HANDLERS
   const useHint5050 = () => {
-    if (itemCounts.hint_5050 <= 0 || isAnswered || playerHp <= 0) return;
+    if (itemCounts.hint_5050 <= 0 || isAnswered) return;
     sounds.playItemUse();
     setItemCounts((prev) => ({ ...prev, hint_5050: prev.hint_5050 - 1 }));
 
+    // Find 2 incorrect indices to hide
     const incorrectIndices = options
       .map((_, i) => i)
       .filter((i) => i !== correctAnswerIndex);
@@ -222,14 +208,10 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
   };
 
   const useDoubleDamage = () => {
-    if (itemCounts.double_damage <= 0 || isDoubleDamageActive || playerHp <= 0) return;
+    if (itemCounts.double_damage <= 0 || isDoubleDamageActive) return;
     sounds.playItemUse();
     setItemCounts((prev) => ({ ...prev, double_damage: prev.double_damage - 1 }));
     setIsDoubleDamageActive(true);
-  };
-
-  const handleContinueGame = () => {
-    setPlayerHp(maxPlayerHp);
   };
 
   const handleRestart = () => {
@@ -238,7 +220,6 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
     setShuffledList(reshuffled);
     setCurrentIndex(0);
     setMonsterHp(currentMonster.maxHp);
-    setPlayerHp(maxPlayerHp);
     setIsAnswered(false);
     setSelectedOption(null);
     setDamagePopup(null);
@@ -246,8 +227,47 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
 
   if (shuffledList.length === 0 || !currentItem) {
     return (
-      <div className="text-center py-16 pixel-box rounded-2xl">
-        <p className="font-bold text-slate-300">単語データがありません。サイドバーで「課」を選択してください。</p>
+      <div className="text-center py-16 bg-white rounded-3xl border border-slate-200">
+        <p className="font-bold text-slate-600">単語データがありません。</p>
+      </div>
+    );
+  }
+
+  // 8-Bit Retro Start Screen (「ゲームスタート」を押してから開始)
+  if (!isGameStarted) {
+    return (
+      <div className="max-w-xl mx-auto bg-slate-900 text-white p-8 rounded-3xl border-4 border-amber-500 shadow-2xl text-center space-y-6 animate-pop">
+        <div className="space-y-2">
+          <h2 className="text-3xl font-black text-amber-400 tracking-wide mt-2">
+            ⚔️ クエスタ (単語バトル) ⚔️
+          </h2>
+          <p className="text-xs text-slate-400 font-bold">
+            全 {vocabList.length} 問の中国語単語を覚えるRPGアドベンチャー！
+          </p>
+        </div>
+
+        <div className="flex items-center justify-center gap-6 py-6 bg-slate-950/70 rounded-2xl border border-slate-800 relative overflow-hidden">
+          <HeroSprite />
+          <span className="text-xl font-black text-red-500 animate-pulse">VS</span>
+          <MonsterSprite icon={initialMonsters[0].icon} />
+        </div>
+
+        <div className="text-left text-xs font-bold text-slate-300 bg-slate-800/80 p-4 rounded-2xl space-y-2 border border-slate-700">
+          <p className="text-amber-400">🎮 <strong>バトルルール:</strong></p>
+          <p>• 4択問題に正解して敵モンスターを攻撃！</p>
+          <p>• 思考中じわじわダメージを受けるので素早く回答しよう！</p>
+          <p>• 迷ったら「❓ わからない」で解説カードをチェック！</p>
+        </div>
+
+        <button
+          onClick={() => {
+            sounds.playFlip();
+            setIsGameStarted(true);
+          }}
+          className="w-full py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-lg rounded-2xl shadow-xl border-2 border-red-400 transition-all active:scale-95 flex items-center justify-center gap-2 animate-pulse cursor-pointer"
+        >
+          <Swords className="w-6 h-6" /> ゲームスタート (PRESS START)
+        </button>
       </div>
     );
   }
@@ -255,237 +275,209 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
   const xpNeeded = playerLevel * 100;
   const xpPercent = Math.min(100, Math.round((playerXp / xpNeeded) * 100));
 
-  const renderMonsterSprite = () => {
-    const type = monsterIndex % 3;
-    if (type === 0) return <PixelDragon isHit={monsterHit} />;
-    if (type === 1) return <PixelSkeleton isHit={monsterHit} />;
-    return <PixelSlime isHit={monsterHit} />;
-  };
-
   return (
-    <div className="max-w-2xl mx-auto space-y-4 relative">
-      {/* 💀 GAME OVER OVERLAY MODAL */}
-      {playerHp <= 0 && (
-        <div className="absolute inset-0 bg-slate-950/95 z-50 rounded-2xl flex flex-col items-center justify-center p-6 space-y-5 border-4 border-rose-600 shadow-2xl">
-          <div className="font-nes text-3xl sm:text-4xl text-rose-500 animate-pulse">
-            GAME OVER
-          </div>
-          <p className="text-sm font-bold text-slate-300 text-center">
-            モンスターの攻撃でHPが0になりました！
-          </p>
-          <button
-            onClick={handleContinueGame}
-            className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded border-2 border-amber-300 shadow-lg flex items-center gap-2"
-          >
-            <Flame className="w-5 h-5 text-red-700" /> HP100%回復してリトライ！ ▶️
-          </button>
-        </div>
-      )}
-
+    <div className="max-w-xl mx-auto space-y-5">
       {/* ========================================================= */}
-      {/* 1. RETRO 8-BIT TOP STATUS HUD                              */}
+      {/* 1. MONSTER & BATTLE HUD (RPG Header)                      */}
       {/* ========================================================= */}
-      <div className="pixel-box p-3 sm:p-4 rounded-xl space-y-2 select-none">
-        <div className="flex items-center justify-between text-xs font-bold text-slate-200 border-b border-slate-700 pb-2">
-          {/* Player LV & HP & EXP */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="bg-red-700 text-white font-nes text-[10px] px-2 py-0.5 border border-red-500 rounded">
-              LV.{playerLevel}
+      <div className="bg-white p-5 rounded-3xl border-2 border-slate-200 shadow-lg space-y-3 relative overflow-hidden">
+        {/* Top Player Status Bar (Lv.1 Start) */}
+        <div className="flex items-center justify-between text-xs font-bold text-slate-700 border-b pb-2">
+          <div className="flex items-center gap-2">
+            <span className="bg-red-700 text-white font-black px-2.5 py-0.5 rounded-full text-xs shadow-sm">
+              Lv.{playerLevel} HERO
             </span>
-
-            {/* Player HP Meter */}
-            <div className="flex items-center gap-1">
-              <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-              <div className="w-20 sm:w-28 bg-slate-800 h-3 border border-slate-600 overflow-hidden relative">
-                <div
-                  className="bg-rose-500 h-full transition-all duration-200"
-                  style={{ width: `${(playerHp / maxPlayerHp) * 100}%` }}
-                />
-                <span className="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-bold text-white">
-                  HP {playerHp}/{maxPlayerHp}
-                </span>
+            <div className="flex flex-col gap-1">
+              {/* XP Bar */}
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <span className="text-slate-500 font-bold">XP</span>
+                <div className="w-20 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-red-600 to-rose-500 h-full transition-all duration-300 rounded-full"
+                    style={{ width: `${xpPercent}%` }}
+                  />
+                </div>
+                <span className="text-slate-400 font-bold">{playerXp}/{xpNeeded}</span>
               </div>
-            </div>
-
-            {/* EXP Bar */}
-            <div className="hidden sm:flex items-center gap-1">
-              <span className="text-yellow-400 font-bold text-[10px]">EXP</span>
-              <div className="w-16 bg-slate-800 h-2 border border-slate-600 overflow-hidden">
-                <div className="bg-amber-400 h-full transition-all duration-300" style={{ width: `${xpPercent}%` }} />
+              {/* HP Bar (Passive damage target) */}
+              <div className="flex items-center gap-1.5 text-[10px]">
+                <span className="text-emerald-600 font-bold">HP</span>
+                <div className="w-20 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-green-500 h-full transition-all duration-300 rounded-full"
+                    style={{ width: `${playerHp}%` }}
+                  />
+                </div>
+                <span className="text-slate-600 font-bold">{playerHp}/100</span>
               </div>
             </div>
           </div>
 
-          {/* Restart */}
           <button
             onClick={handleRestart}
-            className="text-[11px] font-bold text-slate-400 hover:text-white flex items-center gap-1"
+            className="text-[11px] font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1"
           >
             <RotateCcw className="w-3.5 h-3.5" /> 再シャッフル
           </button>
         </div>
 
-        {/* Item Counter Bar */}
-        <div className="flex items-center justify-between text-xs pt-1">
+        {/* Monster & Hero Battle Stage Display */}
+        <div className="flex items-center justify-between pt-2 pb-1 relative px-2">
+          {/* Hero Left Side (Always animated) */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={useHint5050}
-              disabled={itemCounts.hint_5050 <= 0 || isAnswered || playerHp <= 0}
-              className={`px-2 py-1 rounded border text-xs font-bold flex items-center gap-1 transition-all ${
-                itemCounts.hint_5050 > 0 && !isAnswered
-                  ? 'bg-slate-800 hover:bg-slate-700 text-yellow-300 border-amber-500/60'
-                  : 'bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed'
-              }`}
-            >
-              <HelpCircle className="w-3.5 h-3.5 text-yellow-400" />
-              50/50 (<span className="font-mono">{itemCounts.hint_5050}</span>)
-            </button>
-
-            <button
-              onClick={useDoubleDamage}
-              disabled={itemCounts.double_damage <= 0 || isDoubleDamageActive || isAnswered || playerHp <= 0}
-              className={`px-2 py-1 rounded border text-xs font-bold flex items-center gap-1 transition-all ${
-                isDoubleDamageActive
-                  ? 'bg-amber-500 text-slate-950 font-black border-amber-300 animate-pulse'
-                  : itemCounts.double_damage > 0 && !isAnswered
-                  ? 'bg-slate-800 hover:bg-slate-700 text-amber-400 border-amber-500/60'
-                  : 'bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed'
-              }`}
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              {isDoubleDamageActive ? '2倍中!' : `2倍 (${itemCounts.double_damage})`}
-            </button>
-          </div>
-
-          <span className="text-[11px] text-slate-400 font-mono">
-            問 {currentIndex + 1} / {shuffledList.length}
-          </span>
-        </div>
-      </div>
-
-      {/* ========================================================= */}
-      {/* 2. 8-BIT 2D RETRO SIDE-VIEW BATTLE STAGE                   */}
-      {/* ========================================================= */}
-      <div className={`relative h-48 sm:h-56 bg-slate-950 rounded-xl border-4 border-slate-700 overflow-hidden shadow-2xl flex flex-col justify-between ${
-        isPlayerHit ? 'ring-4 ring-rose-600 animate-pulse' : ''
-      }`}>
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:12px_12px]" />
-
-        <div className="absolute top-4 left-10 z-10"><PixelTorch /></div>
-        <div className="absolute top-4 right-10 z-10"><PixelTorch /></div>
-
-        {/* Monster HP Progress Gauge */}
-        <div className="absolute top-3 left-0 right-0 z-20 flex justify-center">
-          <div className="bg-slate-900/90 border border-slate-600 px-4 py-1 rounded-full flex items-center gap-3">
-            <span className="font-bold text-xs text-rose-400 flex items-center gap-1">
-              👾 {currentMonster.name}
-            </span>
-            <div className="w-28 sm:w-36 bg-slate-800 h-3 border border-slate-600 rounded-none overflow-hidden relative">
-              <div
-                className="bg-emerald-500 h-full transition-all duration-300"
-                style={{ width: `${(monsterHp / currentMonster.maxHp) * 100}%` }}
-              />
-              <span className="absolute inset-0 flex items-center justify-center text-[9px] font-mono font-bold text-white">
-                {monsterHp}/{currentMonster.maxHp}
-              </span>
+            <HeroSprite isAttacking={isHeroAttacking} isHurt={isHeroHurt} />
+            <div className="hidden sm:block">
+              <span className="text-[10px] font-black text-slate-400 block">PLAYER</span>
+              <span className="text-xs font-black text-slate-700">勇者</span>
             </div>
           </div>
-        </div>
 
-        {/* Battle Arena Characters */}
-        <div className="flex-1 flex items-end justify-between px-6 sm:px-12 pb-4 relative z-10">
-          {/* Hero Knight (Left Platform) */}
-          <div className="flex flex-col items-center">
-            <PixelKnight isAttacking={heroAttacking} isHit={isPlayerHit} />
-            <div className="w-20 sm:w-28 h-3 bg-slate-800 border-t-2 border-slate-600 rounded-none shadow-md" />
+          {/* VS Divider */}
+          <div className="font-black text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full border border-red-200 animate-pulse">
+            VS
+          </div>
+
+          {/* Monster Right Side (Always animated) */}
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <h3 className="font-extrabold text-sm text-slate-800 flex items-center justify-end gap-1">
+                {currentMonster.name}
+              </h3>
+              {/* Monster HP Bar */}
+              <div className="w-36 sm:w-44 bg-slate-200 h-3.5 rounded-full overflow-hidden border border-slate-300 mt-1 relative">
+                <div
+                  className="bg-gradient-to-r from-red-500 to-amber-500 h-full transition-all duration-300 rounded-full"
+                  style={{ width: `${(monsterHp / currentMonster.maxHp) * 100}%` }}
+                />
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-slate-800 shadow-sm">
+                  HP {monsterHp} / {currentMonster.maxHp}
+                </span>
+              </div>
+            </div>
+
+            <MonsterSprite icon={currentMonster.icon} isHit={monsterHit} />
           </div>
 
           {/* Floating Damage Popup Animation */}
           {damagePopup && (
-            <div className={`absolute right-16 sm:right-24 top-12 font-black text-2xl sm:text-3xl animate-damage z-30 flex flex-col items-center ${
-              damagePopup.isCritical ? 'text-amber-400 scale-125' : 'text-red-500'
+            <div className={`absolute right-12 top-0 font-black text-2xl animate-damage z-20 ${
+              damagePopup.isCritical ? 'text-amber-500 scale-125' : 'text-red-600'
             }`}>
-              {damagePopup.label && <span className="text-xs bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-black mb-1">{damagePopup.label}</span>}
-              -{damagePopup.amount} HP!
+              -{damagePopup.amount} HP! {damagePopup.isCritical && '⚡️CRITICAL!'}
             </div>
           )}
-
-          {/* Monster Sprite (Right Platform) */}
-          <div className="flex flex-col items-center">
-            {renderMonsterSprite()}
-            <div className="w-24 sm:w-32 h-3 bg-slate-800 border-t-2 border-slate-600 rounded-none shadow-md" />
-          </div>
         </div>
-
-        <div className="h-3 bg-gradient-to-r from-orange-600 via-red-600 to-amber-500 border-t border-amber-400 opacity-90 animate-pulse" />
       </div>
 
       {/* ========================================================= */}
-      {/* 3. CLASSIC NES BORDER DIALOG & 4-CHOICE OPTIONS            */}
+      {/* 2. ITEM SLOT BAR (Game Item Boosters)                      */}
       {/* ========================================================= */}
-      <div className="pixel-box-gold p-4 sm:p-5 rounded-xl space-y-4 shadow-xl">
-        <div className="flex items-center justify-between text-xs">
-          <span className="bg-amber-500 text-slate-950 font-bold px-2.5 py-0.5 rounded">
+      <div className="bg-slate-900 text-white p-3 rounded-2xl flex items-center justify-between gap-2 shadow-md">
+        <span className="text-xs font-extrabold text-slate-300 flex items-center gap-1">
+          <Swords className="w-4 h-4 text-red-500" /> アイテム:
+        </span>
+
+        <div className="flex items-center gap-2">
+          {/* Hint 50/50 Item */}
+          <button
+            onClick={useHint5050}
+            disabled={itemCounts.hint_5050 <= 0 || isAnswered}
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all border ${
+              itemCounts.hint_5050 > 0 && !isAnswered
+                ? 'bg-slate-800 hover:bg-slate-700 text-yellow-300 border-amber-500/50'
+                : 'bg-slate-950 text-slate-600 border-slate-800 cursor-not-allowed'
+            }`}
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-yellow-400" />
+            50/50ヒント ({itemCounts.hint_5050})
+          </button>
+
+          {/* Double Damage Item */}
+          <button
+            onClick={useDoubleDamage}
+            disabled={itemCounts.double_damage <= 0 || isDoubleDamageActive || isAnswered}
+            className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all border ${
+              isDoubleDamageActive
+                ? 'bg-amber-500 text-slate-950 font-black border-amber-300 animate-pulse'
+                : itemCounts.double_damage > 0 && !isAnswered
+                ? 'bg-slate-800 hover:bg-slate-700 text-amber-400 border-amber-500/50'
+                : 'bg-slate-950 text-slate-600 border-slate-800 cursor-not-allowed'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            {isDoubleDamageActive ? '2倍攻撃発動中!' : `2倍攻撃 (${itemCounts.double_damage})`}
+          </button>
+        </div>
+      </div>
+
+      {/* ========================================================= */}
+      {/* 3. QUESTION CARD (Shuffled 4-Choice Game)                  */}
+      {/* ========================================================= */}
+      <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-lg p-6 space-y-5">
+        {/* Category Tag & Prompt */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold px-3 py-1 bg-slate-100 text-slate-600 rounded-full border">
             {currentItem.category}
           </span>
-          <span className="text-amber-300 font-bold flex items-center gap-1">
-            ⚡ 2.5秒以内に即答で「SPEED STRIKE!」発動
+          <span className="text-xs font-bold text-slate-400">
+            問 {currentIndex + 1} （常時シャッフル中）
           </span>
         </div>
 
-        {/* Question Word (Japanese Meaning) */}
-        <div className="bg-slate-950 p-4 border-2 border-slate-700 text-center rounded">
-          <h3 className="text-2xl sm:text-3xl font-extrabold text-amber-300">
+        {/* Question: Japanese Meaning (Gothic Font) */}
+        <div className="text-center py-4 bg-slate-50 rounded-2xl border border-slate-100">
+          <h3 className="text-3xl font-extrabold text-slate-800">
             {currentItem.meaning}
           </h3>
         </div>
 
-        {/* 4 Chinese Options */}
-        <div className="space-y-2">
+        {/* 4 Chinese Options (Clean Gothic Font / No Serif) */}
+        <div className="space-y-2.5">
           {options.map((opt, idx) => {
             const isHidden = hiddenOptionIndices.includes(idx);
-            let btnStyle = 'pixel-btn text-slate-100 hover:text-amber-300';
+            let btnStyle = 'border-slate-200 hover:border-red-400 bg-white text-slate-800 active:scale-98';
 
             if (isHidden) {
-              btnStyle = 'opacity-20 border-slate-800 bg-slate-950 text-slate-700 pointer-events-none';
+              btnStyle = 'border-slate-100 bg-slate-50 text-slate-300 opacity-20 pointer-events-none';
             } else if (isAnswered) {
               if (idx === correctAnswerIndex) {
-                btnStyle = 'border-emerald-500 bg-emerald-950 text-emerald-300 font-bold ring-2 ring-emerald-500';
+                btnStyle = 'border-emerald-500 bg-emerald-50 text-emerald-900 font-bold ring-2 ring-emerald-400/50';
               } else if (idx === selectedOption) {
-                btnStyle = 'border-rose-500 bg-rose-950 text-rose-300 font-bold';
+                btnStyle = 'border-red-400 bg-red-50 text-red-900 font-bold';
               } else {
-                btnStyle = 'opacity-40 border-slate-800 bg-slate-950';
+                btnStyle = 'border-slate-200 bg-slate-50 opacity-40';
               }
             }
 
             return (
               <button
                 key={opt.id}
-                disabled={isAnswered || isHidden || playerHp <= 0}
+                disabled={isAnswered || isHidden}
                 onClick={() => handleSelectOption(idx)}
-                className={`w-full text-left p-3.5 rounded border-2 transition-all flex items-center justify-between font-bold text-base sm:text-lg ${btnStyle}`}
+                className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between font-bold text-base ${btnStyle}`}
               >
                 <span className="flex items-center gap-3">
-                  <span className="font-nes text-xs text-amber-400">
+                  <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 border">
                     {['A', 'B', 'C', 'D'][idx]}
                   </span>
-                  <span className="font-extrabold">{opt.hanzi}</span>
-                  <span className="text-xs font-mono text-slate-400">({opt.pinyin})</span>
+                  {/* Clean Gothic Chinese Text */}
+                  <span className="text-xl font-bold">{opt.hanzi}</span>
+                  <span className="text-xs font-mono text-slate-500">({opt.pinyin})</span>
                 </span>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={(e) => speak(opt.hanzi, e)}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-amber-400"
+                    className="p-1.5 rounded-full hover:bg-slate-200 text-slate-500"
                     title="発音を聞く"
                   >
                     <Volume2 className="w-4 h-4" />
                   </button>
                   {isAnswered && idx === correctAnswerIndex && (
-                    <CheckCircle className="w-5 h-5 text-emerald-400 animate-bounce" />
+                    <CheckCircle className="w-5 h-5 text-emerald-600 animate-bounce" />
                   )}
                   {isAnswered && idx === selectedOption && idx !== correctAnswerIndex && (
-                    <XCircle className="w-5 h-5 text-rose-500" />
+                    <XCircle className="w-5 h-5 text-red-500" />
                   )}
                 </div>
               </button>
@@ -493,46 +485,48 @@ export const VocabStudy: React.FC<VocabStudyProps> = ({
           })}
         </div>
 
-        {/* ❓ 「わからない」 SKIP / GIVE UP BUTTON */}
+        {/* ❓ わからない スキップボタン (解説を表示) */}
         {!isAnswered && (
           <button
-            disabled={playerHp <= 0}
-            onClick={handleDontKnow}
-            className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs rounded border border-slate-700 transition-all flex items-center justify-center gap-1.5"
+            onClick={() => {
+              setIsAnswered(true);
+              setIsCorrect(false);
+              sounds.playWrong();
+            }}
+            className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-2xl border border-slate-300 flex items-center justify-center gap-1.5 transition-all active:scale-98"
           >
-            <HelpCircle className="w-4 h-4 text-amber-400" />
-            ❓ わからない (正解と解説を表示)
+            <HelpCircle className="w-4 h-4 text-slate-500" /> ❓ わからない (解説を見る)
           </button>
         )}
 
-        {/* ❌ 不正解 ＆ わからない の時に正解・解説と次へボタンを表示 */}
+        {/* ❌ 不正解の時のみ「次へ進む →」ボタンと解説を表示する */}
         {isAnswered && !isCorrect && (
-          <div className="p-4 rounded bg-rose-950/80 border-2 border-rose-600 space-y-3 animate-pop">
+          <div className="p-4 sm:p-5 rounded-2xl bg-red-50 border border-red-200 space-y-3 animate-pop">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 font-bold text-sm text-rose-300">
-                <XCircle className="w-5 h-5 text-rose-400" />
-                <span>正解: 「{currentItem.hanzi} ({currentItem.pinyin})」</span>
+              <div className="flex items-center gap-2 font-extrabold text-base text-red-800">
+                <XCircle className="w-5 h-5 text-red-600" />
+                <span>正解は 「{currentItem.hanzi} ({currentItem.pinyin})」 です</span>
               </div>
 
               <button
                 onClick={() => speak(currentItem.hanzi)}
-                className="flex items-center gap-1 text-xs font-bold text-rose-300 bg-slate-900 px-2.5 py-1 rounded border border-rose-800"
+                className="flex items-center gap-1 text-xs font-bold text-red-700 bg-white px-2.5 py-1 rounded-full border border-red-200"
               >
                 <Volume2 className="w-3.5 h-3.5" /> 発音を聞く
               </button>
             </div>
 
             {currentItem.notes && (
-              <div className="text-xs font-bold bg-slate-900 p-2.5 rounded text-amber-200 border border-slate-700">
+              <div className="text-xs font-bold bg-white/90 p-2.5 rounded-xl text-slate-700 border border-slate-200">
                 💡 メモ: {currentItem.notes}
               </div>
             )}
 
             <button
               onClick={handleNext}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded text-sm shadow-md flex items-center justify-center gap-2 mt-2 transition-all border border-amber-300"
+              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-sm shadow-md flex items-center justify-center gap-2 mt-2 transition-all"
             >
-              理解した！次へ進む ▶️
+              理解した！次へ進む →
             </button>
           </div>
         )}

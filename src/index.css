@@ -1,54 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Universal Design Font (BIZ UDPGothic) as Primary Font */
 body {
-  font-family: 'BIZ UDPGothic', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  image-rendering: pixelated;
+  font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-h1, h2, h3, h4, button, span, p, div, input, textarea {
-  font-family: 'BIZ UDPGothic', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+/* Force Gothic / Modern Sans-Serif font on all text (No hard Serif) */
+.font-serif, h1, h2, h3, h4, button, span, div {
+  font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
-/* 8-bit NES Classic Border Frame */
-.pixel-box {
-  background-color: #090D16;
-  border: 4px solid #FFFFFF;
-  box-shadow: inset 0 0 0 2px #090D16, 0 4px 0 0 #000000;
-  color: #FFFFFF;
+.perspective-1000 {
+  perspective: 1000px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
 }
 
-.pixel-box-gold {
-  background-color: #090D16;
-  border: 4px solid #F59E0B;
-  box-shadow: inset 0 0 0 2px #090D16, 0 4px 0 0 #000000;
-  color: #FFFFFF;
-}
-
-.pixel-btn {
-  border: 3px solid #64748B;
-  background-color: #0F172A;
-  transition: all 0.1s ease;
-}
-
-.pixel-btn:hover:not(:disabled) {
-  border-color: #F59E0B;
-  background-color: #1E293B;
-  transform: translateY(-2px);
-}
-
-.pixel-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-/* NES Retro Font Class for Numbers & Special Badges */
-.font-nes {
-  font-family: 'Press Start 2P', monospace !important;
-}
-
-/* RPG Damage & Monster Hit Animations */
+/* RPG Damage Float Animation */
 @keyframes damage-pop {
   0% { opacity: 0; transform: translateY(0) scale(0.5); }
   30% { opacity: 1; transform: translateY(-20px) scale(1.3); }
@@ -62,6 +40,32 @@ h1, h2, h3, h4, button, span, p, div, input, textarea {
   75% { transform: translateX(12px) rotate(6deg); }
 }
 
+/* Always Active Idle Animations (常時アニメーション) */
+@keyframes hero-idle {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-5px) scale(1.04); }
+}
+
+@keyframes monster-idle {
+  0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+  25% { transform: translateY(-6px) rotate(-4deg) scale(1.05); }
+  75% { transform: translateY(3px) rotate(4deg) scale(0.96); }
+}
+
+@keyframes hero-attack {
+  0% { transform: translateX(0) scale(1); }
+  40% { transform: translateX(35px) scale(1.25) rotate(15deg); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+@keyframes player-hurt {
+  0%, 100% { transform: translateX(0); filter: none; }
+  20% { transform: translateX(-10px) rotate(-8deg); filter: sepia(1) saturate(5) hue-rotate(-50deg); }
+  40% { transform: translateX(8px) rotate(6deg); filter: sepia(1) saturate(5) hue-rotate(-50deg); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(3px); }
+}
+
 .animate-damage {
   animation: damage-pop 0.8s ease-out forwards;
 }
@@ -70,7 +74,23 @@ h1, h2, h3, h4, button, span, p, div, input, textarea {
   animation: monster-shake 0.35s ease-in-out;
 }
 
-/* Hide scrollbars */
+.animate-hero-idle {
+  animation: hero-idle 1.5s ease-in-out infinite;
+}
+
+.animate-monster-idle {
+  animation: monster-idle 2.2s ease-in-out infinite;
+}
+
+.animate-hero-attack {
+  animation: hero-attack 0.4s ease-out;
+}
+
+.animate-player-hurt {
+  animation: player-hurt 0.5s ease-in-out;
+}
+
+/* Hide scrollbars for clean UI */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
